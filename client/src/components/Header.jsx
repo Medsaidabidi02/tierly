@@ -10,7 +10,7 @@ const STATUS_LABELS = {
   error: 'Error',
 };
 
-export default function Header({ onSetupClick }) {
+export default function Header({ onSetupClick, onAdminClick }) {
   const { username, connectionStatus, currentPack } = useStore();
 
   return (
@@ -84,6 +84,16 @@ export default function Header({ onSetupClick }) {
           </span>
         </div>
 
+        {/* Settings Button */}
+        <button
+          className="btn-secondary"
+          style={{ padding: '6px' }}
+          onClick={onAdminClick}
+          title="Admin Settings"
+        >
+          ⚙️
+        </button>
+
         {/* Setup button */}
         <button
           id="header-setup-btn"
@@ -91,7 +101,7 @@ export default function Header({ onSetupClick }) {
           style={{ padding: '6px 14px', fontSize: '0.8rem' }}
           onClick={onSetupClick}
         >
-          {username ? '⚙ Settings' : 'Connect Chat'}
+          {username ? 'Chat connected' : 'Connect Chat'}
         </button>
       </div>
     </header>

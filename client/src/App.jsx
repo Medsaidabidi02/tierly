@@ -7,6 +7,7 @@ import VoteBar from './components/VoteBar';
 import ChatFeed from './components/ChatFeed';
 import SetupModal from './components/SetupModal';
 import PackSelector from './components/PackSelector';
+import AdminDashboard from './components/AdminDashboard';
 import { useKickChat } from './hooks/useKickChat';
 import { useDemoSimulator } from './hooks/useDemoSimulator';
 import useStore from './store/useStore';
@@ -19,13 +20,31 @@ document.head.appendChild(spinStyle);
 export default function App() {
   const [showSetup, setShowSetup] = useState(false);
   const [showPacks, setShowPacks] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const { chatroomId, currentPack, connectionStatus } = useStore();
+
+  // Secret Admin Hotkey: Shift + A
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.shiftKey && e.key === 'A') {
+        setShowAdmin(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Connect to Kick chat (or no-op if no chatroomId)
   useKickChat();
 
   // Demo mode auto-votes
   useDemoSimulator();
+
+  // Fetch custom packs from Supabase on mount
+  const { fetchCustomPacks } = useStore();
+  React.useEffect(() => {
+    fetchCustomPacks();
+  }, [fetchCustomPacks]);
 
   const isConnected = connectionStatus === 'subscribed' || connectionStatus === 'connected';
   const isDemoMode = chatroomId === 'DEMO';
@@ -39,7 +58,10 @@ export default function App() {
       overflow: 'hidden',
     }}>
       {/* ── Header ── */}
-      <Header onSetupClick={() => setShowSetup(true)} />
+      <Header 
+        onSetupClick={() => setShowSetup(true)} 
+        onAdminClick={() => setShowAdmin(true)} 
+      />
 
       {/* ── Main Content ── */}
       <div style={{
@@ -230,6 +252,9 @@ export default function App() {
         )}
         {showPacks && (
           <PackSelector onClose={() => setShowPacks(false)} />
+        )}
+        {showAdmin && (
+          <AdminDashboard onClose={() => setShowAdmin(false)} />
         )}
       </AnimatePresence>
     </div>

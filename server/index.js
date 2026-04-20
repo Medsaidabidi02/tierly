@@ -8,12 +8,14 @@ const { createKickChatBridge } = require('./kickProxy');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Allow all origins for now to avoid CORS/Origin issues during deployment
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
+// Health check endpoint
+app.get('/health', (req, res) => res.send('OK'));
+
 // ─── REST: Get chatroom ID for a Kick username ────────────────────────────────
-// NOTE: The browser-side fetch in kickApi.js is tried first (Strategy 1).
-// This endpoint is Strategy 2 — a server-side fallback with browser-like headers.
 app.get('/api/chatroom/:username', async (req, res) => {
   const { username } = req.params;
   try {
@@ -66,8 +68,27 @@ app.get('/api/chatroom/:username', async (req, res) => {
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server, path: '/ws' });
 
-wss.on('connection', (clientWs) => {
-  console.log('[WS] Client connected');
+// Heartbeat to keep connections alive on Railway/Vercel proxies
+function heartbeat() {
+  this.isAlive = true;
+}
+
+const interval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) return ws.terminate();
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 30000);
+
+wss.on('connection', (clientWs, req) => {
+  const origin = req.headers.origin;
+  const ip = req.socket.remoteAddress;
+  console.log(`[WS] New connection from ${origin} (${ip})`);
+  
+  clientWs.isAlive = true;
+  clientWs.on('pong', heartbeat);
+
   let bridge = null;
 
   clientWs.on('message', (raw) => {
@@ -104,7 +125,12 @@ wss.on('connection', (clientWs) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`\n🚀 KickRank server running on http://localhost:${PORT}`);
-  console.log(`📡 WebSocket proxy at ws://localhost:${PORT}/ws\n`);
+wss.on('close', () => {
+  clearInterval(interval);
+});
+
+// Explicitly bind to 0.0.0.0 for Railway
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 KickRank server running on http://0.0.0.0:${PORT}`);
+  console.log(`📡 WebSocket proxy at ws://0.0.0.0:${PORT}/ws\n`);
 });

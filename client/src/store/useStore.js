@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
 
 // ─── Tier Configuration ───────────────────────────────────────────────────────
 export const TIERS = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
@@ -21,6 +22,7 @@ const useStore = create((set, get) => ({
 
   // ── Pack state ────────────────────────────────────────────────────────────
   currentPack: null,       // { id, name, items: [{ id, name, imageUrl }] }
+  customPacks: [],         // Locally created or fetched packs
   packQueue: [],           // items yet to be voted on
   currentItemIndex: 0,
 
@@ -146,6 +148,56 @@ const useStore = create((set, get) => ({
     set((state) => ({
       chatMessages: [msg, ...state.chatMessages].slice(0, 100),
     }));
+  },
+
+  addCustomPack: async (pack) => {
+    const { customPacks } = get();
+    set({ customPacks: [pack, ...customPacks] });
+
+    // Try to persist to Supabase if available
+    if (supabase) {
+      try {
+        const { data: packData, error: pError } = await supabase
+          .from('packs')
+          .insert({ name: pack.name, description: pack.description })
+          .select()
+          .single();
+
+        if (pError) throw pError;
+
+        const itemsToInsert = pack.items.map((item, idx) => ({
+          pack_id: packData.id,
+          name: item.name,
+          image_url: item.imageUrl,
+          position: idx
+        }));
+
+        const { error: iError } = await supabase.from('pack_items').insert(itemsToInsert);
+        if (iError) throw iError;
+        
+        console.log('Pack persisted to Supabase successfully');
+      } catch (e) {
+        console.warn('Supabase persistence failed, pack only available locally for now:', e.message);
+      }
+    }
+  },
+
+  fetchCustomPacks: async () => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase
+        .from('packs')
+        .select(`
+          id, name, description,
+          items:pack_items(id, name, imageUrl:image_url)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      set({ customPacks: data || [] });
+    } catch (e) {
+      console.warn('Failed to fetch packs from Supabase:', e.message);
+    }
   },
 
   resetAll: () => set({

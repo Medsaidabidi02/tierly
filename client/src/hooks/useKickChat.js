@@ -1,11 +1,18 @@
 import { useEffect, useRef, useCallback } from 'react';
 import useStore from '../store/useStore';
 
-// Derive WebSocket URL from the server URL — auto-upgrades http→ws and https→wss.
-// In production, set VITE_SERVER_URL=https://your-backend.railway.app in Vercel.
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
-const WS_URL = SERVER_URL.replace(/^http/, 'ws');
-
+/**
+ * Derives the WebSocket URL from the server URL.
+ * Standardizes the URL to handle trailing slashes and secure protocols.
+ */
+function getWsUrl() {
+  const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+  // Remove trailing slash if present
+  const cleanBase = SERVER_URL.replace(/\/$/, '');
+  // Replace http with ws
+  const wsBase = cleanBase.replace(/^http/, 'ws');
+  return `${wsBase}/ws`;
+}
 
 /**
  * Manages the WebSocket connection to the KickRank backend,
@@ -22,7 +29,6 @@ export function useKickChat() {
     setConnectionStatus,
     registerVote,
     addChatMessage,
-    votingOpen,
   } = useStore();
 
   const connect = useCallback(() => {
@@ -31,13 +37,16 @@ export function useKickChat() {
       wsRef.current.close();
     }
 
+    const WS_URL = getWsUrl();
+    console.log(`[useKickChat] Connecting to ${WS_URL}...`);
+
     setConnectionStatus('connecting');
-    const ws = new WebSocket(`${WS_URL}/ws`);
+    const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
 
     ws.onopen = () => {
       if (!mountedRef.current) return;
-      // Tell the backend which chatroom to subscribe to
+      console.log('[useKickChat] ✅ WebSocket Connected');
       ws.send(JSON.stringify({ type: 'connect', chatroomId }));
     };
 
@@ -55,7 +64,6 @@ export function useKickChat() {
         }
 
         if (msg.type === 'chat') {
-          // Add to chat feed
           addChatMessage({
             username: msg.username,
             content: msg.content,
@@ -63,7 +71,6 @@ export function useKickChat() {
             timestamp: msg.timestamp,
           });
 
-          // Register as a vote if valid tier
           if (msg.tier) {
             registerVote(msg.username, msg.tier);
           }
@@ -73,16 +80,18 @@ export function useKickChat() {
       }
     };
 
-    ws.onerror = () => {
+    ws.onerror = (err) => {
       if (!mountedRef.current) return;
-      setConnectionStatus('error', 'WebSocket connection failed. Is the server running?');
+      console.error('[useKickChat] ❌ WebSocket Error:', err);
+      setConnectionStatus('error', 'WebSocket connection failed. Check console for details.');
     };
 
     ws.onclose = (event) => {
       if (!mountedRef.current) return;
+      console.log(`[useKickChat] 🔌 WebSocket Closed (code ${event.code})`);
       if (event.code !== 1000) {
-        // Unexpected close — reconnect after 5s
         setConnectionStatus('disconnected');
+        // Exponential backoff or simple 5s reconnect
         reconnectRef.current = setTimeout(() => {
           if (mountedRef.current && chatroomId) connect();
         }, 5000);
@@ -93,7 +102,9 @@ export function useKickChat() {
   const disconnect = useCallback(() => {
     clearTimeout(reconnectRef.current);
     if (wsRef.current) {
-      wsRef.current.send(JSON.stringify({ type: 'disconnect' }));
+      if (wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'disconnect' }));
+      }
       wsRef.current.close(1000);
       wsRef.current = null;
     }
@@ -108,7 +119,7 @@ export function useKickChat() {
       clearTimeout(reconnectRef.current);
       if (wsRef.current) wsRef.current.close(1000);
     };
-  }, [chatroomId]);
+  }, [chatroomId, connect]);
 
   return { connect, disconnect, connectionStatus };
 }

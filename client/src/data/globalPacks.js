@@ -1,8 +1,20 @@
 // ─── Global Packs ─────────────────────────────────────────────────────────────
 // Each pack has an id, name, description, and items [] with { id, name, imageUrl }
-// We use picsum.photos for placeholder images with consistent seeds.
 
 export const GLOBAL_PACKS = [
+  {
+    id: 'global-popular-games',
+    name: '🔥 Popular Games',
+    description: 'The most popular games right now',
+    items: [
+      { id: 'pg-1', name: 'minecraft', imageUrl: '/src/assets/game_minecraft.png' },
+      { id: 'pg-2', name: 'fortnite',  imageUrl: '/src/assets/game_fortnite.png' },
+      { id: 'pg-3', name: 'gta v',     imageUrl: '/src/assets/game_gtav.png' },
+      { id: 'pg-4', name: 'valorant',  imageUrl: '/src/assets/game_valorant.png' },
+      { id: 'pg-5', name: 'league of legends', imageUrl: '/src/assets/game_lol.png' },
+      { id: 'pg-6', name: 'apex legends', imageUrl: '/src/assets/game_apex.png' },
+    ],
+  },
   {
     id: 'global-streaming',
     name: '🎮 Streaming Platforms',
@@ -34,7 +46,7 @@ export const GLOBAL_PACKS = [
     ],
   },
   {
-    id: 'global-games',
+    id: 'global-games-genres',
     name: '🕹️ Gaming Genres',
     description: 'Rate the most popular video game genres',
     items: [

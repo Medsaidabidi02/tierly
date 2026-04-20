@@ -5,10 +5,8 @@ import { supabase, supabaseReady, uploadPackImage, createPack, addPackItem, fetc
 import useStore from '../store/useStore';
 
 export default function PackSelector({ onClose }) {
-  const { username, setPack } = useStore();
+  const { username, setPack, customPacks } = useStore();
   const [tab, setTab] = useState('global'); // 'global' | 'custom'
-  const [userPacks, setUserPacks] = useState([]);
-  const [loadingUserPacks, setLoadingUserPacks] = useState(false);
 
   // Custom pack creation state
   const [creating, setCreating] = useState(false);
@@ -22,26 +20,8 @@ export default function PackSelector({ onClose }) {
     onClose();
   };
 
-  const handleTabChange = async (t) => {
+  const handleTabChange = (t) => {
     setTab(t);
-    if (t === 'custom' && supabaseReady && username) {
-      setLoadingUserPacks(true);
-      try {
-        const packs = await fetchUserPacks(username);
-        setUserPacks(packs.map(p => ({
-          ...p,
-          items: (p.pack_items || []).map(item => ({
-            id: item.id,
-            name: item.name,
-            imageUrl: item.image_url,
-          })),
-        })));
-      } catch (e) {
-        console.error('Error loading user packs:', e);
-      } finally {
-        setLoadingUserPacks(false);
-      }
-    }
   };
 
   const handleFileUpload = async (e) => {
@@ -245,21 +225,17 @@ export default function PackSelector({ onClose }) {
                       + Create New Pack
                     </motion.button>
 
-                    {/* User's saved packs */}
-                    {loadingUserPacks ? (
-                      <div style={{ textAlign: 'center', padding: '20px', color: 'var(--kick-text-muted)' }}>
-                        Loading your packs…
-                      </div>
-                    ) : userPacks.length === 0 ? (
+                    {/* Custom packs from store */}
+                    {customPacks.length === 0 ? (
                       <div style={{
                         textAlign: 'center', padding: '30px',
                         color: 'var(--kick-text-dim)', fontSize: '0.875rem',
                       }}>
-                        {supabaseReady ? "No saved packs yet. Create your first one!" : "🔧 Supabase not configured — packs will work locally only."}
+                        {username ? "No saved packs yet. Create your first one!" : "🔧 Connect chat to see your saved packs."}
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {userPacks.map(pack => (
+                        {customPacks.map(pack => (
                           <motion.button
                             key={pack.id}
                             whileHover={{ scale: 1.01 }}
@@ -278,7 +254,7 @@ export default function PackSelector({ onClose }) {
                           >
                             <div>
                               <div style={{ fontWeight: '600', fontSize: '0.9rem', color: 'var(--kick-text)' }}>{pack.name}</div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--kick-text-muted)', marginTop: '2px' }}>{pack.items.length} items</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--kick-text-muted)', marginTop: '2px' }}>{pack.items?.length || 0} items</div>
                             </div>
                             <span style={{ color: 'var(--kick-green)', fontSize: '0.8rem' }}>Select →</span>
                           </motion.button>
