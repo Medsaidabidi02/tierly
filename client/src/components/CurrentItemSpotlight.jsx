@@ -53,20 +53,20 @@ export default function CurrentItemSpotlight() {
         )}
       </div>
 
-      <div style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', textAlign: 'center' }}>
+      <div style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '30px', textAlign: 'center' }}>
         {/* Image Frame */}
         <div style={{ position: 'relative' }}>
           <motion.div
             key={currentItem.id}
-            initial={{ scale: 0.8, opacity: 0, rotate: -5 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            initial={{ scale: 0.8, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
             style={{
-              width: '180px',
-              height: '180px',
-              borderRadius: '16px',
+              width: '340px',
+              height: '340px',
+              borderRadius: '24px',
               overflow: 'hidden',
-              border: '4px solid #fff',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+              border: '6px solid #fff',
+              boxShadow: '0 25px 70px rgba(0,0,0,0.6)',
               background: '#222',
             }}
           >
@@ -86,33 +86,25 @@ export default function CurrentItemSpotlight() {
                 exit={{ scale: 0, opacity: 0 }}
                 style={{
                   position: 'absolute',
-                  top: '-10px',
-                  right: '-10px',
+                  top: '-15px',
+                  right: '-15px',
                   background: 'var(--kick-green)',
                   color: '#000',
-                  padding: '4px 12px',
+                  padding: '6px 14px',
                   borderRadius: '20px',
-                  fontSize: '0.75rem',
-                  fontWeight: '800',
-                  boxShadow: '0 4px 12px rgba(83, 252, 24, 0.4)',
+                  fontSize: '0.8rem',
+                  fontWeight: '900',
+                  boxShadow: '0 8px 20px rgba(83, 252, 24, 0.4)',
                 }}
               >
-                VOTING OPEN
+                VOTING
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        <div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: '800', margin: '0 0 4px', color: 'var(--kick-text)' }}>
-            {currentItem.name}
-          </h2>
-          {votingOpen && totalVotes > 0 && (
-            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--kick-text-muted)' }}>
-              Current Trend: <strong style={{ color: 'var(--kick-text)' }}>{leadingTier} Tier</strong>
-            </p>
-          )}
-        </div>
+        {/* Name and Trend removed for a cleaner look as requested */}
+        <div style={{ height: '10px' }} />
       </div>
 
       {/* Control Footer */}

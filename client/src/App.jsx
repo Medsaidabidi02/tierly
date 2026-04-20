@@ -102,7 +102,7 @@ export default function App() {
 
         {/* ── LEFT: Tier List ── */}
         <div style={{
-          flex: '1 1 0',
+          flex: '0.7 1 0',
           minWidth: 0,
           display: 'flex',
           flexDirection: 'column',
@@ -140,8 +140,8 @@ export default function App() {
 
         {/* ── CENTER: Current Item Spotlight ── */}
         <div style={{
-          width: '280px',
-          minWidth: '280px',
+          width: '400px',
+          minWidth: '400px',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
