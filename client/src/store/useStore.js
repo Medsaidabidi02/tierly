@@ -1,28 +1,15 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
 
 // ─── Tier Configuration ───────────────────────────────────────────────────────
 export const TIERS = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
 
 export const TIER_TO_SCORE = { S: 6, A: 5, B: 4, C: 3, D: 2, E: 1, F: 0 };
-export const SCORE_TO_TIER = (avg) => TIERS.slice().reverse()[Math.round(avg)]; // F=0 → index 0
+export const SCORE_TO_TIER = (avg) => TIERS.slice().reverse()[Math.round(avg)];
 
 export const TIER_COLORS = {
   S: '#ff6b35', A: '#ffd700', B: '#7bc67e',
   C: '#4fc3f7', D: '#9575cd', E: '#f48fb1', F: '#546e7a',
-};
-
-// Helper to load/save from localStorage
-const STORAGE_KEY = 'kickrank_custom_packs';
-const loadLocalPacks = () => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
-  } catch (e) {
-    return [];
-  }
-};
-const saveLocalPacks = (packs) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(packs));
 };
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -30,28 +17,31 @@ const useStore = create((set, get) => ({
   // ── Connection state ──────────────────────────────────────────────────────
   username: '',
   chatroomId: null,
-  connectionStatus: 'disconnected', // 'disconnected' | 'connecting' | 'connected' | 'subscribed' | 'error'
+  connectionStatus: 'disconnected',
   connectionError: null,
 
   // ── Pack state ────────────────────────────────────────────────────────────
-  currentPack: null,       // { id, name, items: [{ id, name, imageUrl }] }
-  customPacks: loadLocalPacks(), // Initialize from local storage
-  packQueue: [],           // items yet to be voted on
+  currentPack: null,
+  customPacks: [],      // Community packs fetched from DB
+  officialPacks: [],    // Official packs fetched from DB
+  packQueue: [],
   currentItemIndex: 0,
 
   // ── Voting state ──────────────────────────────────────────────────────────
-  currentItem: null,       // { id, name, imageUrl }
+  currentItem: null,
   votingOpen: false,
   votes: { S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },
   totalVotes: 0,
-  voterSet: new Set(),     // Track per-session voters (username → last vote)
-  voterMap: {},            // username → tier (last vote)
-  averageScore: 3,         // 0-6
+  voterMap: {},
+  averageScore: 3,
   leadingTier: 'C',
+  
+  // ── Timer State ─────────────────────────────────────────────────────────
+  votingTimer: null,     // Current countdown value (seconds)
+  timerActive: false,
 
   // ── Tier list state ───────────────────────────────────────────────────────
   tierList: { S: [], A: [], B: [], C: [], D: [], E: [], F: [] },
-  // Chat feed
   chatMessages: [],
 
   // ─── Actions ──────────────────────────────────────────────────────────────
@@ -60,6 +50,37 @@ const useStore = create((set, get) => ({
   setChatroomId: (chatroomId) => set({ chatroomId }),
   setConnectionStatus: (status, error = null) =>
     set({ connectionStatus: status, connectionError: error }),
+
+  fetchGlobalPacks: async () => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase
+        .from('packs')
+        .select(`
+          id, name, description, created_at, is_official,
+          items:pack_items(id, name, imageUrl:image_url)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      const transformed = (data || []).map(p => ({
+        ...p,
+        items: (p.items || []).sort((a,b) => a.position - b.position).map(it => ({
+          id: it.id,
+          name: it.name,
+          imageUrl: it.imageUrl
+        }))
+      }));
+
+      set({ 
+        officialPacks: transformed.filter(p => p.is_official),
+        customPacks: transformed.filter(p => !p.is_official)
+      });
+    } catch (e) {
+      console.warn('DB Fetch failed:', e.message);
+    }
+  },
 
   setPack: (pack) => {
     const items = pack.items.map((item, i) => ({ ...item, id: item.id || `item-${i}` }));
@@ -84,10 +105,12 @@ const useStore = create((set, get) => ({
       voterMap: {},
       averageScore: 3,
       leadingTier: 'C',
+      timerActive: false,
+      votingTimer: null
     });
   },
 
-  openVoting: () => {
+  openVoting: (duration) => {
     set({
       votingOpen: true,
       votes: { S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },
@@ -95,7 +118,21 @@ const useStore = create((set, get) => ({
       voterMap: {},
       averageScore: 3,
       leadingTier: 'C',
+      votingTimer: duration || null,
+      timerActive: !!duration
     });
+  },
+
+  decrementTimer: () => {
+    const { votingTimer, timerActive } = get();
+    if (!timerActive || votingTimer === null) return;
+
+    if (votingTimer <= 1) {
+      set({ votingTimer: 0, timerActive: false });
+      get().finalizeVoting();
+    } else {
+      set({ votingTimer: votingTimer - 1 });
+    }
   },
 
   registerVote: (username, tier) => {
@@ -150,6 +187,8 @@ const useStore = create((set, get) => ({
       voterMap: {},
       averageScore: 3,
       leadingTier: 'C',
+      timerActive: false,
+      votingTimer: null
     });
   },
 
@@ -159,19 +198,16 @@ const useStore = create((set, get) => ({
     }));
   },
 
-  // ── Local-Only Custom Packs ──────────────────
-  addCustomPack: (pack) => {
-    const { customPacks } = get();
-    const newPacks = [pack, ...customPacks];
-    set({ customPacks: newPacks });
-    saveLocalPacks(newPacks);
-  },
-
-  deletePack: (packId) => {
-    const { customPacks } = get();
-    const newPacks = customPacks.filter(p => p.id !== packId);
-    set({ customPacks: newPacks });
-    saveLocalPacks(newPacks);
+  // Deleted all local save logic as we are switching to global DB flow
+  deletePack: async (packId) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.from('packs').delete().eq('id', packId);
+      if (error) throw error;
+      get().fetchGlobalPacks();
+    } catch (e) {
+      console.error('Delete failed:', e.message);
+    }
   },
 
   resetAll: () => set({
@@ -187,6 +223,8 @@ const useStore = create((set, get) => ({
     leadingTier: 'C',
     tierList: { S: [], A: [], B: [], C: [], D: [], E: [], F: [] },
     chatMessages: [],
+    timerActive: false,
+    votingTimer: null
   }),
 }));
 

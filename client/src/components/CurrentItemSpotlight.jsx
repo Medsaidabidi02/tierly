@@ -1,275 +1,163 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { motion, useAnimation, AnimatePresence } from 'framer-motion';
-import useStore, { TIER_COLORS, TIER_TO_SCORE } from '../store/useStore';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import useStore from '../store/useStore';
 
-// Direction each tier "pulls" the image (normalized x, y offsets)
-const TIER_GRAVITY = {
-  S: { x: 0,   y: -1  },   // up
-  A: { x: 0.5, y: -0.8 },  // up-right
-  B: { x: 0.8, y: -0.3 },  // right
-  C: { x: 0,   y: 0   },   // center (C = baseline)
-  D: { x: -0.5, y: 0.5 },  // down-left
-  E: { x: -0.5, y: 0.8 },  // down
-  F: { x: 0,   y: 1   },   // far down
-};
+const DURATIONS = [
+  { label: 'Manual', value: null },
+  { label: '30s', value: 30 },
+  { label: '1m', value: 60 },
+  { label: '2m', value: 120 },
+  { label: '5m', value: 300 },
+];
 
 export default function CurrentItemSpotlight() {
-  const { currentItem, votingOpen, votes, totalVotes, averageScore, leadingTier, finalizeVoting, openVoting, packQueue, currentItemIndex } = useStore();
-  const controls = useAnimation();
-  const [prevLeading, setPrevLeading] = useState(null);
+  const { 
+    currentItem, 
+    votingOpen, 
+    openVoting, 
+    finalizeVoting, 
+    totalVotes, 
+    leadingTier, 
+    packQueue, 
+    currentItemIndex,
+    votingTimer,
+    timerActive
+  } = useStore();
 
-  const remainingCount = packQueue.length - currentItemIndex - 1;
-  const hasMoreItems = remainingCount > 0;
-
-  // ── Gravity/jitter effect ────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!votingOpen || totalVotes === 0) {
-      controls.start({ x: 0, y: 0, rotate: 0 });
-      return;
-    }
-
-    const gravity = TIER_GRAVITY[leadingTier] || { x: 0, y: 0 };
-
-    // Confidence = how dominant is the leading tier? (0-1)
-    const leadingCount = votes[leadingTier] || 0;
-    const confidence = totalVotes > 0 ? leadingCount / totalVotes : 0;
-
-    // Pull strength: scales with confidence and total votes (max 18px pull)
-    const pullStrength = Math.min(confidence * 22, 22);
-    const jitterStrength = Math.max(3 - confidence * 3, 0.5);
-
-    const sequence = async () => {
-      await controls.start({
-        x: gravity.x * pullStrength + (Math.random() - 0.5) * jitterStrength,
-        y: gravity.y * pullStrength + (Math.random() - 0.5) * jitterStrength,
-        rotate: (Math.random() - 0.5) * jitterStrength * 0.5,
-        transition: { type: 'spring', stiffness: 400, damping: 20 },
-      });
-    };
-
-    sequence();
-    setPrevLeading(leadingTier);
-  }, [leadingTier, totalVotes, votingOpen, JSON.stringify(votes)]);
-
-  // ── Tier color for border glow ───────────────────────────────────────────────
-  const tierColor = leadingTier ? TIER_COLORS[leadingTier] : 'var(--kick-border)';
+  const [selectedDuration, setSelectedDuration] = useState(null);
 
   if (!currentItem) {
     return (
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '12px',
-        padding: '20px',
-      }}>
-        <div style={{ fontSize: '3rem', opacity: 0.3 }}>🏆</div>
-        <div style={{ color: 'var(--kick-text-muted)', fontSize: '0.9rem', textAlign: 'center' }}>
-          {packQueue.length === 0
-            ? 'Select a pack to get started'
-            : 'All items have been ranked!'}
-        </div>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--kick-text-dim)' }}>
+        Pack complete! 🎉
       </div>
     );
   }
 
+  const formatTime = (seconds) => {
+    if (seconds === null) return '';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div style={{
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      padding: '16px 12px',
-      gap: '16px',
-      overflow: 'hidden',
-    }}>
-
-      {/* Progress indicator */}
-      <div style={{
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        fontSize: '0.75rem',
-        color: 'var(--kick-text-muted)',
-      }}>
-        <span>Item {currentItemIndex + 1} of {packQueue.length}</span>
-        <span style={{ color: 'var(--kick-green)' }}>{remainingCount} remaining</span>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Step indicator */}
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--kick-border)', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--kick-text-muted)', fontWeight: '600' }}>
+        <span>ITEM {currentItemIndex + 1} OF {packQueue.length}</span>
+        {timerActive && (
+          <span style={{ color: 'var(--kick-green)', fontFamily: 'Space Grotesk' }}>
+            ⏱️ {formatTime(votingTimer)}
+          </span>
+        )}
       </div>
 
-      {/* Progress bar */}
-      <div style={{
-        width: '100%', height: '3px',
-        background: 'var(--kick-surface-3)',
-        borderRadius: '2px',
-        overflow: 'hidden',
-        marginTop: '-10px',
-      }}>
-        <motion.div
-          style={{ height: '100%', background: 'var(--kick-green)', borderRadius: '2px' }}
-          animate={{ width: `${((currentItemIndex) / packQueue.length) * 100}%` }}
-          transition={{ type: 'spring', stiffness: 100 }}
-        />
-      </div>
-
-      {/* The main animated image */}
-      <motion.div
-        id="current-item-spotlight"
-        layout
-        animate={controls}
-        style={{
-          position: 'relative',
-          flex: '0 0 auto',
-        }}
-      >
-        <motion.div
-          animate={{
-            borderColor: votingOpen && totalVotes > 0 ? tierColor : 'rgba(255,255,255,0.1)',
-            boxShadow: votingOpen && totalVotes > 0
-              ? `0 0 30px ${tierColor}44, 0 0 60px ${tierColor}22`
-              : '0 4px 24px rgba(0,0,0,0.4)',
-          }}
-          transition={{ duration: 0.4 }}
-          style={{
-            width: '200px',
-            height: '200px',
-            borderRadius: '16px',
-            border: '2px solid',
-            overflow: 'hidden',
-            background: 'var(--kick-surface-2)',
-          }}
-          className={votingOpen ? 'voting-active-border' : ''}
-        >
-          <img
-            src={currentItem.imageUrl}
-            alt={currentItem.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
-            }}
-          />
-          <div style={{
-            display: 'none',
-            width: '100%', height: '100%',
-            alignItems: 'center', justifyContent: 'center',
-            background: 'var(--kick-surface-3)',
-            color: 'var(--kick-text-muted)',
-            fontSize: '0.75rem',
-          }}>
-            No Image
-          </div>
-        </motion.div>
-
-        {/* Tier badge overlay when voting */}
-        <AnimatePresence>
-          {votingOpen && totalVotes > 0 && leadingTier && (
-            <motion.div
-              key={leadingTier}
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              style={{
-                position: 'absolute',
-                top: '-10px',
-                right: '-10px',
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                background: tierColor,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: '900',
-                fontSize: '0.9rem',
-                color: ['S', 'A', 'B', 'C'].includes(leadingTier) ? '#000' : '#fff',
-                boxShadow: `0 0 12px ${tierColor}88`,
-              }}
-            >
-              {leadingTier}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-
-      {/* Item name */}
-      <div style={{ textAlign: 'center' }}>
-        <h2 style={{
-          fontFamily: 'Space Grotesk, sans-serif',
-          fontWeight: '700',
-          fontSize: '1.3rem',
-          margin: 0,
-          color: 'var(--kick-text)',
-        }}>
-          {currentItem.name}
-        </h2>
-        {votingOpen && totalVotes > 0 && (
+      <div style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', textAlign: 'center' }}>
+        {/* Image Frame */}
+        <div style={{ position: 'relative' }}>
           <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
+            key={currentItem.id}
+            initial={{ scale: 0.8, opacity: 0, rotate: -5 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
             style={{
-              marginTop: '4px',
-              fontSize: '0.8rem',
-              color: tierColor,
-              fontWeight: '600',
+              width: '180px',
+              height: '180px',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              border: '4px solid #fff',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+              background: '#222',
             }}
           >
-            Chat leans {leadingTier} · {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
+            <img 
+              src={currentItem.imageUrl} 
+              alt={currentItem.name} 
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+            />
           </motion.div>
-        )}
+          
+          {/* Status Badge */}
+          <AnimatePresence>
+            {votingOpen && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                style={{
+                  position: 'absolute',
+                  top: '-10px',
+                  right: '-10px',
+                  background: 'var(--kick-green)',
+                  color: '#000',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  fontSize: '0.75rem',
+                  fontWeight: '800',
+                  boxShadow: '0 4px 12px rgba(83, 252, 24, 0.4)',
+                }}
+              >
+                VOTING OPEN
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: '800', margin: '0 0 4px', color: 'var(--kick-text)' }}>
+            {currentItem.name}
+          </h2>
+          {votingOpen && totalVotes > 0 && (
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--kick-text-muted)' }}>
+              Current Trend: <strong style={{ color: 'var(--kick-text)' }}>{leadingTier} Tier</strong>
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Controls */}
-      <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
+      {/* Control Footer */}
+      <div style={{ padding: '20px', borderTop: '1px solid var(--kick-border)', background: 'rgba(255,255,255,0.02)' }}>
         {!votingOpen ? (
-          <motion.button
-            id="open-voting-btn"
-            className="btn-primary"
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={openVoting}
-            style={{ padding: '12px 28px', fontSize: '0.95rem' }}
-          >
-            🗳 Open Voting
-          </motion.button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+             <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+                {DURATIONS.map(d => (
+                  <button
+                    key={d.label}
+                    onClick={() => setSelectedDuration(d.value)}
+                    style={{
+                      flexShrink: 0,
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.65rem',
+                      background: selectedDuration === d.value ? 'var(--kick-green)' : 'var(--kick-surface-3)',
+                      color: selectedDuration === d.value ? '#000' : 'var(--kick-text-muted)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: '700'
+                    }}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+             </div>
+             <button 
+               className="btn-primary" 
+               style={{ width: '100%', height: '44px' }}
+               onClick={() => openVoting(selectedDuration)}
+             >
+               🚀 Open Voting
+             </button>
+          </div>
         ) : (
-          <motion.button
-            id="finalize-btn"
-            className="btn-primary"
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
+          <button 
+            className="btn-primary" 
+            style={{ width: '100%', height: '44px', background: '#fff', color: '#000' }}
             onClick={finalizeVoting}
-            style={{
-              padding: '12px 28px',
-              fontSize: '0.95rem',
-              background: totalVotes > 0 ? tierColor : undefined,
-              color: totalVotes > 0 && ['S','A','B','C'].includes(leadingTier) ? '#000' : undefined,
-            }}
           >
-            ✓ Finalize → {leadingTier}
-          </motion.button>
+            🏁 Finalize & Next
+          </button>
         )}
       </div>
-
-      {/* Voting hint */}
-      {votingOpen && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          style={{
-            fontSize: '0.72rem',
-            color: 'var(--kick-text-dim)',
-            textAlign: 'center',
-            lineHeight: 1.4,
-            margin: 0,
-          }}
-        >
-          Chat is typing S / A / B / C / D / E / F…<br />
-          Each viewer's last vote counts.
-        </motion.p>
-      )}
     </div>
   );
 }

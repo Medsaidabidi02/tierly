@@ -40,24 +40,25 @@ export default function App() {
   // Demo mode auto-votes
   useDemoSimulator();
 
+  // Timer Countdown Ticker
+  const { decrementTimer, timerActive } = useStore();
+  React.useEffect(() => {
+    let interval;
+    if (timerActive) {
+      interval = setInterval(() => {
+        decrementTimer();
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timerActive, decrementTimer]);
+
   // Handle Sync Logic
-  const { setChatroomId, setUsername, setConnectionStatus } = useStore();
+  const { setChatroomId, setUsername, setConnectionStatus, fetchGlobalPacks } = useStore();
   
   React.useEffect(() => {
-    // Magic Sync Listener: Check for chatroomId and u (username) in URL
-    const params = new URLSearchParams(window.location.search);
-    const urlCid = params.get('chatroomId');
-    const urlU = params.get('u');
-
-    if (urlCid && urlU) {
-      console.log(`[Magic Sync] Auto-connecting to ${urlU} (ID: ${urlCid})`);
-      setUsername(urlU);
-      setChatroomId(urlCid);
-      setConnectionStatus('connecting');
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, [setChatroomId, setUsername, setConnectionStatus]);
+    fetchGlobalPacks(); // Initial fetch of shared gallery
+    
+    // Magic Sync Listener...
 
   const isConnected = connectionStatus === 'subscribed' || connectionStatus === 'connected';
   const isDemoMode = chatroomId === 'DEMO';
@@ -227,7 +228,7 @@ export default function App() {
           zIndex: 50,
         }}>
           <span style={{ color: 'var(--kick-text-muted)' }}>
-            👋 Welcome to <strong style={{ color: 'var(--kick-text)' }}>KickRank</strong>
+            👋 Welcome to <strong style={{ color: 'var(--kick-text)' }}>Tierly</strong>
           </span>
           <button
             className="btn-primary"

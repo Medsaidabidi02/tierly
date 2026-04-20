@@ -15,7 +15,7 @@ export default function Header({ onSetupClick, onAdminClick }) {
 
   return (
     <header
-      id="kickrank-header"
+      id="tierly-header"
       style={{
         background: 'var(--kick-surface)',
         borderBottom: '1px solid var(--kick-border)',
@@ -43,7 +43,7 @@ export default function Header({ onSetupClick, onAdminClick }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontWeight: '900', fontSize: '14px', color: '#000',
             fontFamily: 'Space Grotesk, sans-serif',
-          }}>K</div>
+          }}>T</div>
           <span style={{
             fontFamily: 'Space Grotesk, sans-serif',
             fontWeight: '700',
@@ -51,7 +51,7 @@ export default function Header({ onSetupClick, onAdminClick }) {
             letterSpacing: '-0.02em',
             color: 'var(--kick-text)',
           }}>
-            Kick<span style={{ color: 'var(--kick-green)' }}>Rank</span>
+            Tier<span style={{ color: 'var(--kick-green)' }}>ly</span>
           </span>
         </motion.div>
 
