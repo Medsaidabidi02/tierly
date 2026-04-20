@@ -8,7 +8,7 @@ export default function TierList() {
 
   return (
     <div
-      id="tier-list"
+      id="tier-list-container"
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -16,7 +16,9 @@ export default function TierList() {
         width: '100%',
         height: '100%',
         overflowY: 'auto',
-        padding: '4px 2px',
+        padding: '12px',
+        backgroundColor: '#0a0a0a',
+        borderRadius: '12px'
       }}
     >
       <LayoutGroup>

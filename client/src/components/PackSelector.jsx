@@ -83,8 +83,8 @@ export default function PackSelector({ onClose }) {
 
           <div style={{ display: 'flex', gap: '4px', marginBottom: '-1px' }}>
             {[
-              ['global', '⭐ Official Gallery'],
-              ['custom', '🌍 Community Users']
+              ['global', '⭐ Official Packs'],
+              ['custom', '🌍 Community Packs']
             ].map(([key, label]) => (
               <button
                 key={key}

@@ -37,9 +37,6 @@ export default function App() {
   // Connect to Kick chat (or no-op if no chatroomId)
   useKickChat();
 
-  // Demo mode auto-votes
-  useDemoSimulator();
-
   // Timer Countdown Ticker
   const { decrementTimer, timerActive } = useStore();
   React.useEffect(() => {

@@ -59,7 +59,7 @@ export default function AdminDashboard({ onClose }) {
       for (let i = 0; i < items.length; i++) {
         await addPackItem(pack.id, items[i].name, items[i].imageUrl, i);
       }
-      alert(`Pack "${name}" published to ${isOfficial ? 'Official' : 'Community'} Gallery!`);
+      alert(`Pack "${name}" published to ${isOfficial ? 'Official' : 'Community'} Packs!`);
       setName('');
       setDescription('');
       setItems([]);
@@ -111,8 +111,8 @@ export default function AdminDashboard({ onClose }) {
                   <div style={{ flex: 1 }}>
                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', color: 'var(--kick-text-muted)' }}>Type</label>
                     <select className="kick-input" value={String(isOfficial)} onChange={e => setIsOfficial(e.target.value === 'true')}>
-                      <option value="false">🌍 Community</option>
-                      <option value="true">⭐ Official</option>
+                      <option value="false">🌍 Community Packs</option>
+                      <option value="true">⭐ Official Packs</option>
                     </select>
                   </div>
                   {isOfficial && (

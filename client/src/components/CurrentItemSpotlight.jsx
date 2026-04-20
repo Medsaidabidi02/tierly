@@ -25,11 +25,58 @@ export default function CurrentItemSpotlight() {
   } = useStore();
 
   const [selectedDuration, setSelectedDuration] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleDownload = async () => {
+    if (typeof window.html2canvas === 'undefined') {
+      alert('Export tool is still loading, please wait a second...');
+      return;
+    }
+    
+    setIsExporting(true);
+    const element = document.getElementById('tier-list-container');
+    if (!element) return;
+
+    try {
+      // Capture the element
+      const canvas = await window.html2canvas(element, {
+        backgroundColor: '#0a0a0a',
+        scale: 2, // High quality
+        logging: false,
+        useCORS: true, 
+        allowTaint: true,
+      });
+
+      // Create download link
+      const link = document.createElement('a');
+      link.download = `Tierly-List-${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Could not generate image. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   if (!currentItem) {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--kick-text-dim)' }}>
-        Pack complete! 🎉
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', padding: '24px' }}>
+        <div style={{ fontSize: '3rem' }}>🎉</div>
+        <div style={{ textAlign: 'center' }}>
+          <h2 style={{ fontFamily: 'Space Grotesk', fontSize: '1.4rem' }}>Pack Complete!</h2>
+          <p style={{ color: 'var(--kick-text-dim)', fontSize: '0.85rem' }}>Your list is ready to share.</p>
+        </div>
+        
+        <button 
+          className="btn-primary"
+          style={{ width: '100%', height: '50px', background: 'var(--kick-green)', color: '#000' }}
+          onClick={handleDownload}
+          disabled={isExporting}
+        >
+          {isExporting ? '📸 Capturing...' : '📥 Download List as Image'}
+        </button>
       </div>
     );
   }
@@ -103,7 +150,6 @@ export default function CurrentItemSpotlight() {
           </AnimatePresence>
         </div>
 
-        {/* Name and Trend removed for a cleaner look as requested */}
         <div style={{ height: '10px' }} />
       </div>
 
