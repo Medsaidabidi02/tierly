@@ -1,0 +1,232 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* ─── KickRank Design Tokens ──────────────────────────────────────────────── */
+:root {
+  --kick-black:       #0a0a0a;
+  --kick-surface:     #111111;
+  --kick-surface-2:   #1a1a1a;
+  --kick-surface-3:   #222222;
+  --kick-border:      #2a2a2a;
+  --kick-green:       #53fc18;
+  --kick-green-dim:   #2d8a0c;
+  --kick-green-glow:  rgba(83, 252, 24, 0.15);
+  --kick-text:        #ffffff;
+  --kick-text-muted:  #888888;
+  --kick-text-dim:    #555555;
+
+  /* Tier colors */
+  --tier-s: #ff6b35;
+  --tier-a: #ffd700;
+  --tier-b: #7bc67e;
+  --tier-c: #4fc3f7;
+  --tier-d: #9575cd;
+  --tier-e: #f48fb1;
+  --tier-f: #546e7a;
+}
+
+/* ─── Base Reset ──────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background-color: var(--kick-black);
+  color: var(--kick-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar Styling ───────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--kick-surface); }
+::-webkit-scrollbar-thumb { background: var(--kick-border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--kick-text-dim); }
+
+/* ─── Global Utility Classes ──────────────────────────────────────────────── */
+.kick-green { color: var(--kick-green); }
+.kick-surface { background: var(--kick-surface); }
+.kick-surface-2 { background: var(--kick-surface-2); }
+.kick-border { border-color: var(--kick-border); }
+
+.glow-green {
+  box-shadow: 0 0 20px var(--kick-green-glow), 0 0 40px rgba(83, 252, 24, 0.05);
+}
+
+.glow-green-text {
+  text-shadow: 0 0 10px rgba(83, 252, 24, 0.5);
+}
+
+.btn-primary {
+  background: var(--kick-green);
+  color: #000;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  letter-spacing: 0.02em;
+  transition: all 0.15s ease;
+}
+.btn-primary:hover {
+  background: #6fff2e;
+  box-shadow: 0 0 20px var(--kick-green-glow);
+  transform: translateY(-1px);
+}
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled {
+  background: var(--kick-border);
+  color: var(--kick-text-dim);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--kick-text);
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--kick-border);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+}
+.btn-secondary:hover {
+  border-color: var(--kick-green);
+  color: var(--kick-green);
+}
+
+.btn-danger {
+  background: transparent;
+  color: #ff4444;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid #ff4444;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+}
+.btn-danger:hover {
+  background: rgba(255, 68, 68, 0.1);
+  box-shadow: 0 0 15px rgba(255, 68, 68, 0.2);
+}
+
+/* ─── Tier Label Colors ───────────────────────────────────────────────────── */
+.tier-label-s { background: var(--tier-s); color: #000; }
+.tier-label-a { background: var(--tier-a); color: #000; }
+.tier-label-b { background: var(--tier-b); color: #000; }
+.tier-label-c { background: var(--tier-c); color: #000; }
+.tier-label-d { background: var(--tier-d); color: #fff; }
+.tier-label-e { background: var(--tier-e); color: #000; }
+.tier-label-f { background: var(--tier-f); color: #fff; }
+
+.tier-glow-s { box-shadow: 0 0 20px rgba(255, 107, 53, 0.3); }
+.tier-glow-a { box-shadow: 0 0 20px rgba(255, 215, 0, 0.3); }
+.tier-glow-b { box-shadow: 0 0 20px rgba(123, 198, 126, 0.3); }
+.tier-glow-c { box-shadow: 0 0 20px rgba(79, 195, 247, 0.3); }
+.tier-glow-d { box-shadow: 0 0 20px rgba(149, 117, 205, 0.3); }
+.tier-glow-e { box-shadow: 0 0 20px rgba(244, 143, 177, 0.3); }
+.tier-glow-f { box-shadow: 0 0 20px rgba(84, 110, 122, 0.3); }
+
+/* ─── Glass Morphism Card ─────────────────────────────────────────────────── */
+.glass-card {
+  background: rgba(26, 26, 26, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--kick-border);
+  border-radius: 12px;
+}
+
+/* ─── Input ───────────────────────────────────────────────────────────────── */
+.kick-input {
+  background: var(--kick-surface-2);
+  border: 1px solid var(--kick-border);
+  color: var(--kick-text);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.15s ease;
+  width: 100%;
+}
+.kick-input:focus {
+  outline: none;
+  border-color: var(--kick-green);
+  box-shadow: 0 0 0 2px rgba(83, 252, 24, 0.1);
+}
+.kick-input::placeholder { color: var(--kick-text-dim); }
+
+/* ─── Status Dot ──────────────────────────────────────────────────────────── */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot.connected { background: var(--kick-green); animation: pulse-green 2s infinite; }
+.status-dot.connecting { background: #ffd700; animation: pulse-yellow 1s infinite; }
+.status-dot.disconnected { background: var(--kick-text-dim); }
+.status-dot.error { background: #ff4444; }
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(83, 252, 24, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(83, 252, 24, 0); }
+}
+@keyframes pulse-yellow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); }
+  50% { box-shadow: 0 0 0 5px rgba(255, 215, 0, 0); }
+}
+
+/* ─── Voting Active Pulse ─────────────────────────────────────────────────── */
+@keyframes voting-pulse {
+  0%, 100% { border-color: var(--kick-green); }
+  50% { border-color: var(--kick-green-dim); box-shadow: 0 0 30px rgba(83, 252, 24, 0.3); }
+}
+.voting-active-border {
+  animation: voting-pulse 1.5s ease-in-out infinite;
+}
+
+/* ─── Shimmer loading ─────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--kick-surface-2) 25%, var(--kick-surface-3) 50%, var(--kick-surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ─── Modal backdrop ──────────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* ─── Scrollable tier row ─────────────────────────────────────────────────── */
+.tier-items-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  display: flex;
+  gap: 6px;
+  padding: 4px 2px;
+}
