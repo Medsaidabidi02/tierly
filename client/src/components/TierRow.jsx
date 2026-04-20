@@ -14,7 +14,7 @@ const TIER_BG = {
 };
 
 const LABEL_TEXT_COLOR = {
-  S: '#000', A: '#000', B: '#000', C: '#000', D: '#fff', E: '#000', F: '#fff',
+  S: '#000', A: '#000', B: '#000', C: '#000', D: '#000', E: '#000', F: '#000',
 };
 
 export default function TierRow({ tier, items, isHighlighted }) {
@@ -73,7 +73,7 @@ export default function TierRow({ tier, items, isHighlighted }) {
         <AnimatePresence>
           {items.length === 0 ? (
             <span style={{
-              color: 'var(--kick-text-dim)',
+              color: ['S','A','B','C','D','E','F'].includes(tier) ? '#000' : '#fff',
               fontSize: '0.72rem',
               fontStyle: 'italic',
               padding: '0 4px',

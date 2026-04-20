@@ -50,7 +50,7 @@ export default function VoteBar() {
                 padding: '2px 10px',
                 borderRadius: '20px',
                 background: TIER_COLORS[currentTier],
-                color: ['S','A','B','C'].includes(currentTier) ? '#000' : '#fff',
+                color: ['S','A','B','C','D','E','F'].includes(currentTier) ? '#000' : '#fff',
                 fontWeight: '800',
                 fontSize: '0.8rem',
                 fontFamily: 'Space Grotesk, sans-serif',
@@ -83,7 +83,7 @@ export default function VoteBar() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontWeight: '800',
                 fontSize: '0.7rem',
-                color: ['S','A','B','C'].includes(tier) ? '#000' : '#fff',
+                color: ['S','A','B','C','D','E','F'].includes(tier) ? '#000' : '#fff',
                 flexShrink: 0,
                 fontFamily: 'Space Grotesk, sans-serif',
               }}>
