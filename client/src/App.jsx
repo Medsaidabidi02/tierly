@@ -41,10 +41,25 @@ export default function App() {
   useDemoSimulator();
 
   // Fetch all shared packs from Supabase on mount
-  const { fetchSharedPacks } = useStore();
+  const { fetchSharedPacks, setChatroomId, setUsername, setConnectionStatus } = useStore();
+  
   React.useEffect(() => {
     fetchSharedPacks();
-  }, [fetchSharedPacks]);
+
+    // Magic Sync Listener: Check for chatroomId and u (username) in URL
+    const params = new URLSearchParams(window.location.search);
+    const urlCid = params.get('chatroomId');
+    const urlU = params.get('u');
+
+    if (urlCid && urlU) {
+      console.log(`[Magic Sync] Auto-connecting to ${urlU} (ID: ${urlCid})`);
+      setUsername(urlU);
+      setChatroomId(urlCid);
+      setConnectionStatus('connecting');
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [fetchSharedPacks, setChatroomId, setUsername, setConnectionStatus]);
 
   const isConnected = connectionStatus === 'subscribed' || connectionStatus === 'connected';
   const isDemoMode = chatroomId === 'DEMO';
