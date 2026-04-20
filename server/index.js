@@ -7,20 +7,24 @@ const { createKickChatBridge } = require('./kickProxy');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// 1. ABSOLUTE CORS & LOGGER MIDDLEWARE
-// This replaces the 'cors' package with manual headers to ensure they are 
-// injected into every single response, even 404s and Errors.
+// 1. ADVANCED REQUEST SNIFFER & CORS HARDENING
 app.use((req, res, next) => {
-  // Log incoming request to Railway console
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} (Origin: ${req.headers.origin || 'none'})`);
-
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  const origin = req.headers.origin || 'none';
+  const method = req.method;
+  const url = req.originalUrl || req.url;
+  const host = req.headers.host;
   
-  // Respond immediately to preflight OPTIONS requests
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
+  // VERBOSE LOGGING for Railway Console
+  console.log(`[INCOMING REQUEST] ${method} ${url} | Host: ${host} | Origin: ${origin}`);
+
+  // Brute-force CORS headers on every response
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE, PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization, Accept, Origin');
+  res.setHeader('Access-Control-Allow-Credentials', 'false');
+
+  if (method === 'OPTIONS') {
+    return res.status(204).send();
   }
   next();
 });
@@ -29,43 +33,63 @@ app.use(express.json());
 
 // 2. ROOT ROUTE: Verification helper
 app.get('/', (req, res) => {
-  res.send('🚀 KickRank Server Online - CORS Headers Hardened');
+  res.json({ message: '🚀 KickRank Server Online', debug: { port: PORT, node: process.version } });
 });
 
-// Health check endpoint
+// Health check endpoint for Railway
 app.get('/health', (req, res) => res.send('OK'));
 
 // ─── REST: Get chatroom ID for a Kick username ────────────────────────────────
 app.get('/api/chatroom/:username', async (req, res) => {
   const { username } = req.params;
   try {
-    // 3. GLOBAL FETCH: Use globalThis.fetch for absolute compatibility with Node 18+
-    const response = await globalThis.fetch(`https://kick.com/api/v2/channels/${username}`, {
+    const fetchUrl = `https://kick.com/api/v2/channels/${username}`;
+    console.log(`[Kick API Fetch] Starting for: ${username} -> ${fetchUrl}`);
+
+    const response = await globalThis.fetch(fetchUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Referer': 'https://kick.com/',
         'Origin': 'https://kick.com',
       },
     });
 
-    if (response.status === 404) return res.status(404).json({ error: `Channel "@${username}" not found on Kick.` });
+    if (response.status === 404) {
+      console.warn(`[Kick API] Channel @${username} not found (404)`);
+      return res.status(404).json({ error: `Channel "@${username}" not found on Kick.` });
+    }
+
     if (!response.ok) {
-      console.error(`[Kick API Error] ${response.status} for ${username}`);
-      return res.status(response.status).json({ error: "Kick API blocked the request. Try again later." });
+      console.error(`[Kick API] Blocked: Status ${response.status}`);
+      return res.status(response.status).json({ error: "Kick API blocked the server request. Try again later." });
     }
 
     const data = await response.json();
     const chatroomId = data?.chatroom?.id;
-    if (!chatroomId) return res.status(404).json({ error: 'Could not find chatroom ID for this user.' });
+    if (!chatroomId) {
+      console.error(`[Kick API] No chatroomId in payload for ${username}`);
+      return res.status(404).json({ error: 'Could not find chatroom ID for this user.' });
+    }
 
+    console.log(`[Kick API Success] chatroomId: ${chatroomId} for ${username}`);
     res.json({ chatroomId: String(chatroomId), channelId: String(data.id), username: data.slug });
   } catch (err) {
-    console.error('[Internal Fetch Error]', err.message);
-    res.status(500).json({ error: 'Server internal error: ' + err.message });
+    console.error(`[Internal Server Error] ${err.message}`);
+    res.status(500).json({ error: 'Internal Server Error: ' + err.message });
   }
+});
+
+// ─── CATCH-ALL 404 HANDLER (with CORS) ───────────────────────────────────────
+app.use((req, res) => {
+  console.warn(`[404 NOT FOUND] ${req.method} ${req.url}`);
+  res.status(404).json({
+    error: 'Not Found',
+    path: req.url,
+    method: req.method,
+    tip: 'Ensure your VITE_SERVER_URL in Vercel is set to your base Railway URL without a trailing slash.'
+  });
 });
 
 // ─── HTTP server + WebSocket server (Manual Upgrade) ─────────────────────────
@@ -97,7 +121,7 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 wss.on('connection', (clientWs, req) => {
-  console.log(`[WS Connection] from ${req.headers.origin}`);
+  console.log(`[WS Connection Open] Origin: ${req.headers.origin}`);
   clientWs.isAlive = true;
   clientWs.on('pong', heartbeat);
 
@@ -119,12 +143,12 @@ wss.on('connection', (clientWs, req) => {
         if (bridge) { bridge.disconnect(); bridge = null; }
       }
     } catch (e) {
-      console.error('[WS Msg Error]', e.message);
+      console.error('[WS Message Error]', e.message);
     }
   });
 
   clientWs.on('close', () => {
-    console.log('[WS Disconnected]');
+    console.log('[WS Connection Closed]');
     if (bridge) bridge.disconnect();
   });
 
@@ -136,7 +160,7 @@ wss.on('connection', (clientWs, req) => {
 
 wss.on('close', () => clearInterval(interval));
 
-// Bind to 0.0.0.0 for Railway
+// Listen on 0.0.0.0 for Railway
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 KickRank Server listening on 0.0.0.0:${PORT}`);
+  console.log(`\n🚀 KickRank Server (Rev 3) listening on 0.0.0.0:${PORT}\n`);
 });

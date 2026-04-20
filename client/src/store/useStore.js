@@ -152,14 +152,18 @@ const useStore = create((set, get) => ({
 
   addCustomPack: async (pack) => {
     const { customPacks } = get();
+    // Add locally immediately for snappy UI
     set({ customPacks: [pack, ...customPacks] });
 
-    // Try to persist to Supabase if available
     if (supabase) {
       try {
         const { data: packData, error: pError } = await supabase
           .from('packs')
-          .insert({ name: pack.name, description: pack.description })
+          .insert({ 
+            name: pack.name, 
+            description: pack.description,
+            created_by: get().username // Optional: track who created it
+          })
           .select()
           .single();
 
@@ -175,28 +179,63 @@ const useStore = create((set, get) => ({
         const { error: iError } = await supabase.from('pack_items').insert(itemsToInsert);
         if (iError) throw iError;
         
-        console.log('Pack persisted to Supabase successfully');
+        // Refresh from DB to get the real IDs
+        get().fetchSharedPacks();
       } catch (e) {
-        console.warn('Supabase persistence failed, pack only available locally for now:', e.message);
+        console.warn('Persistence failed:', e.message);
       }
     }
   },
 
-  fetchCustomPacks: async () => {
+  deletePack: async (packId) => {
+    if (!supabase) {
+       // Local only deletion
+       set((state) => ({
+         customPacks: state.customPacks.filter(p => p.id !== packId)
+       }));
+       return;
+    }
+
+    try {
+      // Logic for Supabase deletion (cascading assumed or manual items first)
+      const { error } = await supabase.from('packs').delete().eq('id', packId);
+      if (error) throw error;
+      
+      set((state) => ({
+        customPacks: state.customPacks.filter(p => p.id !== packId)
+      }));
+    } catch (e) {
+      console.error('Failed to delete pack:', e.message);
+      alert('Delete failed: ' + e.message);
+    }
+  },
+
+  fetchSharedPacks: async () => {
     if (!supabase) return;
     try {
       const { data, error } = await supabase
         .from('packs')
         .select(`
-          id, name, description,
+          id, name, description, created_at,
           items:pack_items(id, name, imageUrl:image_url)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      set({ customPacks: data || [] });
+      
+      // Transform items to include imageUrl field name expected by the app
+      const transformed = (data || []).map(p => ({
+        ...p,
+        items: (p.items || []).map(it => ({
+          id: it.id,
+          name: it.name,
+          imageUrl: it.imageUrl
+        }))
+      }));
+
+      set({ customPacks: transformed });
     } catch (e) {
-      console.warn('Failed to fetch packs from Supabase:', e.message);
+      console.warn('Failed to fetch shared packs:', e.message);
     }
   },
 

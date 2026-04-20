@@ -130,7 +130,7 @@ export default function PackSelector({ onClose }) {
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: '4px', marginBottom: '-1px' }}>
-            {[['global', '🌍 Global Packs'], ['custom', '✏️ My Packs']].map(([key, label]) => (
+            {[['global', '🌍 Global Packs'], ['custom', '✨ Shared Gallery']].map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => handleTabChange(key)}

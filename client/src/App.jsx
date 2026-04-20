@@ -40,11 +40,11 @@ export default function App() {
   // Demo mode auto-votes
   useDemoSimulator();
 
-  // Fetch custom packs from Supabase on mount
-  const { fetchCustomPacks } = useStore();
+  // Fetch all shared packs from Supabase on mount
+  const { fetchSharedPacks } = useStore();
   React.useEffect(() => {
-    fetchCustomPacks();
-  }, [fetchCustomPacks]);
+    fetchSharedPacks();
+  }, [fetchSharedPacks]);
 
   const isConnected = connectionStatus === 'subscribed' || connectionStatus === 'connected';
   const isDemoMode = chatroomId === 'DEMO';
