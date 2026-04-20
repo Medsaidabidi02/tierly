@@ -8,7 +8,7 @@ const { createKickChatBridge } = require('./kickProxy');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Allow all origins for now to avoid CORS/Origin issues during deployment
+// CORS configuration for the Express app
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
@@ -30,48 +30,28 @@ app.get('/api/chatroom/:username', async (req, res) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Referer': 'https://kick.com/',
         'Origin': 'https://kick.com',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'same-origin',
-        'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
         'Connection': 'keep-alive',
       },
     });
 
-    if (response.status === 404) {
-      return res.status(404).json({ error: `Channel "@${username}" not found on Kick.` });
-    }
-
-    if (!response.ok) {
-      console.warn(`[chatroom] Kick API returned ${response.status} for "${username}"`);
-      return res.status(response.status).json({
-        error: `Kick's API returned ${response.status}. Cloudflare may be blocking the server request.`,
-      });
-    }
+    if (response.status === 404) return res.status(404).json({ error: `Channel "@${username}" not found.` });
+    if (!response.ok) return res.status(response.status).json({ error: "Kick API blocked the request." });
 
     const data = await response.json();
     const chatroomId = data?.chatroom?.id;
-    if (!chatroomId) {
-      return res.status(404).json({ error: 'Could not find chatroom ID for this username.' });
-    }
+    if (!chatroomId) return res.status(404).json({ error: 'No chatroom found.' });
 
     res.json({ chatroomId: String(chatroomId), channelId: String(data.id), username: data.slug });
   } catch (err) {
-    console.error('[chatroom lookup error]', err.message);
-    res.status(500).json({ error: 'Failed to fetch: ' + err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ─── HTTP server + WebSocket server ──────────────────────────────────────────
+// ─── HTTP server + WebSocket server (Manual Upgrade) ─────────────────────────
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server, path: '/ws' });
+const wss = new WebSocket.Server({ noServer: true });
 
-// Heartbeat to keep connections alive on Railway/Vercel proxies
-function heartbeat() {
-  this.isAlive = true;
-}
+function heartbeat() { this.isAlive = true; }
 
 const interval = setInterval(() => {
   wss.clients.forEach((ws) => {
@@ -81,11 +61,23 @@ const interval = setInterval(() => {
   });
 }, 30000);
 
+// Manual upgrade handling (extremely robust for proxies)
+server.on('upgrade', (request, socket, head) => {
+  const { pathname } = new URL(request.url, `http://${request.headers.host}`);
+  console.log(`[HTTP] Upgrade request for ${pathname} from ${request.headers.origin}`);
+
+  // Allow connecting at root / or /ws to be compatible with all setups
+  if (pathname === '/' || pathname === '/ws') {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
+});
+
 wss.on('connection', (clientWs, req) => {
-  const origin = req.headers.origin;
-  const ip = req.socket.remoteAddress;
-  console.log(`[WS] New connection from ${origin} (${ip})`);
-  
+  console.log(`[WS] Client connected from ${req.headers.origin}`);
   clientWs.isAlive = true;
   clientWs.on('pong', heartbeat);
 
@@ -104,10 +96,7 @@ wss.on('connection', (clientWs, req) => {
         bridge.connect();
         clientWs.send(JSON.stringify({ type: 'status', status: 'connecting', chatroomId: msg.chatroomId }));
       } else if (msg.type === 'disconnect') {
-        if (bridge) {
-          bridge.disconnect();
-          bridge = null;
-        }
+        if (bridge) { bridge.disconnect(); bridge = null; }
       }
     } catch (e) {
       console.error('[WS parse error]', e.message);
@@ -125,12 +114,9 @@ wss.on('connection', (clientWs, req) => {
   });
 });
 
-wss.on('close', () => {
-  clearInterval(interval);
-});
+wss.on('close', () => clearInterval(interval));
 
-// Explicitly bind to 0.0.0.0 for Railway
+// Bind to 0.0.0.0 for Railway
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 KickRank server running on http://0.0.0.0:${PORT}`);
-  console.log(`📡 WebSocket proxy at ws://0.0.0.0:${PORT}/ws\n`);
+  console.log(`\n🚀 KickRank server listening on 0.0.0.0:${PORT}`);
 });

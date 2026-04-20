@@ -13,8 +13,11 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 export async function fetchChatroomId(username) {
   const slug = encodeURIComponent(username.trim().toLowerCase());
 
-  // ── Strategy 1: Direct browser fetch (bypasses Cloudflare bot detection) ──
-  try {
+  // ── Strategy 1: Direct browser fetch (ONLY for localhost) ──
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  
+  if (isLocal) {
+    try {
     const res = await fetch(`https://kick.com/api/v2/channels/${slug}`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
@@ -46,6 +49,7 @@ export async function fetchChatroomId(username) {
     // CORS error or network failure — fall through to backend
     console.warn('[kickApi] Direct fetch failed (likely CORS), trying backend proxy…', err.message);
   }
+}
 
   // ── Strategy 2: Backend proxy ──────────────────────────────────────────────
   const proxyRes = await fetch(`${SERVER_URL}/api/chatroom/${slug}`);

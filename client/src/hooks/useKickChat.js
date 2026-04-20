@@ -11,7 +11,8 @@ function getWsUrl() {
   const cleanBase = SERVER_URL.replace(/\/$/, '');
   // Replace http with ws
   const wsBase = cleanBase.replace(/^http/, 'ws');
-  return `${wsBase}/ws`;
+  // Connect to root / for maximum proxy compatibility
+  return `${wsBase}/`;
 }
 
 /**
