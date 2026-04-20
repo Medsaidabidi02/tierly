@@ -1,11 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GLOBAL_PACKS } from '../data/globalPacks';
-import { supabase, supabaseReady, uploadPackImage, createPack, addPackItem, fetchUserPacks } from '../lib/supabase';
 import useStore from '../store/useStore';
 
 export default function PackSelector({ onClose }) {
-  const { username, setPack, customPacks } = useStore();
+  const { username, setPack, customPacks, addCustomPack } = useStore();
   const [tab, setTab] = useState('global'); // 'global' | 'custom'
 
   // Custom pack creation state
@@ -31,13 +30,8 @@ export default function PackSelector({ onClose }) {
     const newItems = [];
     for (const file of files) {
       try {
-        let imageUrl;
-        if (supabaseReady) {
-          imageUrl = await uploadPackImage(file);
-        } else {
-          // Fallback: create object URL for local preview (not persisted)
-          imageUrl = URL.createObjectURL(file);
-        }
+        // No Supabase fallback: create object URL for local preview
+        const imageUrl = URL.createObjectURL(file);
         newItems.push({
           id: `local-${Date.now()}-${Math.random()}`,
           name: file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
@@ -45,7 +39,7 @@ export default function PackSelector({ onClose }) {
           file,
         });
       } catch (err) {
-        console.error('Upload failed for', file.name, err);
+        console.error('Local preview failed for', file.name, err);
       }
     }
     setUploadedItems(prev => [...prev, ...newItems]);
@@ -53,44 +47,23 @@ export default function PackSelector({ onClose }) {
     e.target.value = '';
   };
 
-  const handleSaveCustomPack = async () => {
+  const handleSaveCustomPack = () => {
     if (!packName.trim() || uploadedItems.length < 2) return;
-    setUploading(true);
-    try {
-      let pack;
-      if (supabaseReady) {
-        pack = await createPack(packName, username);
-        for (let i = 0; i < uploadedItems.length; i++) {
-          const item = uploadedItems[i];
-          await addPackItem(pack.id, item.name, item.imageUrl, i);
-        }
-        setPack({
-          id: pack.id,
-          name: packName,
-          items: uploadedItems.map((item, i) => ({
-            id: item.id,
-            name: item.name,
-            imageUrl: item.imageUrl,
-          })),
-        });
-      } else {
-        // No Supabase: use locally
-        setPack({
-          id: `local-pack-${Date.now()}`,
-          name: packName,
-          items: uploadedItems.map(item => ({
-            id: item.id,
-            name: item.name,
-            imageUrl: item.imageUrl,
-          })),
-        });
-      }
-      onClose();
-    } catch (err) {
-      console.error('Error saving pack:', err);
-    } finally {
-      setUploading(false);
-    }
+    
+    const newPack = {
+      id: `local-pack-${Date.now()}`,
+      name: packName,
+      items: uploadedItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        imageUrl: item.imageUrl,
+      })),
+    };
+
+    // Save to store (which now uses localStorage)
+    addCustomPack(newPack);
+    setPack(newPack);
+    onClose();
   };
 
   const updateItemName = (id, name) => {
@@ -130,7 +103,7 @@ export default function PackSelector({ onClose }) {
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: '4px', marginBottom: '-1px' }}>
-            {[['global', '🌍 Global Packs'], ['custom', '✨ Shared Gallery']].map(([key, label]) => (
+            {[['global', '🌍 Global Packs'], ['custom', '📦 My Packs']].map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => handleTabChange(key)}
@@ -231,7 +204,7 @@ export default function PackSelector({ onClose }) {
                         textAlign: 'center', padding: '30px',
                         color: 'var(--kick-text-dim)', fontSize: '0.875rem',
                       }}>
-                        {username ? "No saved packs yet. Create your first one!" : "🔧 Connect chat to see your saved packs."}
+                        No saved packs yet. Create your first one to get started!
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -371,17 +344,12 @@ export default function PackSelector({ onClose }) {
                         disabled={!packName.trim() || uploadedItems.length < 2 || uploading}
                         onClick={handleSaveCustomPack}
                       >
-                        {uploading ? 'Saving…' : `Use Pack (${uploadedItems.length} items)`}
+                        {uploading ? 'Saving…' : `Save & Use Pack (${uploadedItems.length} items)`}
                       </button>
                       <button className="btn-secondary" onClick={() => setCreating(false)}>
                         Back
                       </button>
                     </div>
-                    {!supabaseReady && (
-                      <p style={{ fontSize: '0.72rem', color: 'var(--kick-text-dim)' }}>
-                        ℹ Supabase not configured — this pack will only work this session.
-                      </p>
-                    )}
                   </div>
                 )}
               </motion.div>

@@ -37,12 +37,12 @@ export default function AdminDashboard({ onClose }) {
     setDescription('');
     setItems([{ name: '', imageUrl: '' }]);
     setTab('manage');
-    alert('Pack saved to Global Shared Gallery!');
+    alert('Pack saved to your local gallery!');
   };
 
   const handleDelete = (id, e) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this pack from the global gallery?')) {
+    if (window.confirm('Are you sure you want to delete this pack?')) {
       deletePack(id);
     }
   };
@@ -67,8 +67,8 @@ export default function AdminDashboard({ onClose }) {
         {/* Header */}
         <div style={{ padding: '24px', borderBottom: '1px solid var(--kick-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 style={{ margin: 0, fontFamily: 'Space Grotesk, sans-serif' }}>Admin Dashboard</h2>
-            <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--kick-text-muted)' }}>Manage Global Shared Gallery</p>
+            <h2 style={{ margin: 0, fontFamily: 'Space Grotesk, sans-serif' }}>My Gallery</h2>
+            <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--kick-text-muted)' }}>Manage your personal tier list packs</p>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--kick-text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>×</button>
         </div>
@@ -92,7 +92,7 @@ export default function AdminDashboard({ onClose }) {
               borderBottom: tab === 'manage' ? '2px solid var(--kick-green)' : 'none',
               cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s'
             }}
-          >Manage Gallery ({customPacks.length})</button>
+          >My Packs ({customPacks.length})</button>
         </div>
 
         <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
@@ -132,7 +132,7 @@ export default function AdminDashboard({ onClose }) {
                 style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
               >
                 {customPacks.length === 0 ? (
-                  <p style={{ textAlign: 'center', padding: '40px', color: 'var(--kick-text-muted)' }}>No shared packs found.</p>
+                  <p style={{ textAlign: 'center', padding: '40px', color: 'var(--kick-text-muted)' }}>No packs found.</p>
                 ) : (
                   customPacks.map(pack => (
                     <div key={pack.id} style={{ 
@@ -141,7 +141,7 @@ export default function AdminDashboard({ onClose }) {
                     }}>
                       <div>
                         <div style={{ fontWeight: '600', color: 'var(--kick-text)' }}>{pack.name}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--kick-text-muted)' }}>{pack.items?.length || 0} items • Created {new Date(pack.created_at).toLocaleDateString()}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--kick-text-muted)' }}>{pack.items?.length || 0} items</div>
                       </div>
                       <button 
                         onClick={(e) => handleDelete(pack.id, e)}
@@ -158,7 +158,7 @@ export default function AdminDashboard({ onClose }) {
         <div style={{ padding: '20px', borderTop: '1px solid var(--kick-border)', display: 'flex', gap: '12px' }}>
           <button className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Close</button>
           {tab === 'create' && (
-            <button className="btn-primary" style={{ flex: 2 }} onClick={handleSave}>Save to Shared Gallery</button>
+            <button className="btn-primary" style={{ flex: 2 }} onClick={handleSave}>Save Pack</button>
           )}
         </div>
       </div>
