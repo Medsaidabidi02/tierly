@@ -4,16 +4,16 @@ FROM node:22-slim
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy package files first for better caching
-COPY package*.json ./
+# Copy the server's package files
+COPY server/package*.json ./
 
-# Install dependencies
+# Install dependencies for the server
 RUN npm install
 
-# Copy the rest of the application code
-COPY . .
+# Copy the rest of the server code
+COPY server/ .
 
-# Expose the port (Railway provides this)
+# Expose the standard port
 EXPOSE 3001
 
 # Start the server
