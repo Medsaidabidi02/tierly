@@ -7,45 +7,52 @@ const { createKickChatBridge } = require('./kickProxy');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// 1. ADVANCED REQUEST SNIFFER & CORS HARDENING
+// ─── 1. EXPLICIT CORS & LOGGER ────────────────────────────────────────────────
+// Adopted your suggestion for explicit origins to satisfy strict browser checks.
+const ALLOWED_ORIGINS = [
+  'https://tierly-murex.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173'
+];
+
 app.use((req, res, next) => {
-  const origin = req.headers.origin || 'none';
-  const method = req.method;
-  const url = req.originalUrl || req.url;
-  const host = req.headers.host;
+  const origin = req.headers.origin;
   
-  // VERBOSE LOGGING for Railway Console
-  console.log(`[INCOMING REQUEST] ${method} ${url} | Host: ${host} | Origin: ${origin}`);
+  // Log request to Railway console for debugging
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} | Origin: ${origin || 'none'}`);
 
-  // Brute-force CORS headers on every response
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE, PUT');
+  if (ALLOWED_ORIGINS.includes(origin) || !origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  } else {
+    // Fallback to wildcard if not in list, but explicit is better
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE, PUT, PATCH');
   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization, Accept, Origin');
-  res.setHeader('Access-Control-Allow-Credentials', 'false');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24h
 
-  if (method === 'OPTIONS') {
-    return res.status(204).send();
+  if (req.method === 'OPTIONS') {
+    return res.status(200).send(); // Some proxies prefer 200 over 204
   }
   next();
 });
 
 app.use(express.json());
 
-// 2. ROOT ROUTE: Verification helper
+// ─── 2. ROUTES ────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
-  res.json({ message: '🚀 KickRank Server Online', debug: { port: PORT, node: process.version } });
+  res.json({ status: 'Online', message: '🚀 KickRank Server Hardened' });
 });
 
-// Health check endpoint for Railway
 app.get('/health', (req, res) => res.send('OK'));
 
-// ─── REST: Get chatroom ID for a Kick username ────────────────────────────────
 app.get('/api/chatroom/:username', async (req, res) => {
   const { username } = req.params;
   try {
     const fetchUrl = `https://kick.com/api/v2/channels/${username}`;
-    console.log(`[Kick API Fetch] Starting for: ${username} -> ${fetchUrl}`);
-
     const response = await globalThis.fetch(fetchUrl, {
       method: 'GET',
       headers: {
@@ -56,48 +63,49 @@ app.get('/api/chatroom/:username', async (req, res) => {
       },
     });
 
-    if (response.status === 404) {
-      console.warn(`[Kick API] Channel @${username} not found (404)`);
-      return res.status(404).json({ error: `Channel "@${username}" not found on Kick.` });
-    }
-
-    if (!response.ok) {
-      console.error(`[Kick API] Blocked: Status ${response.status}`);
-      return res.status(response.status).json({ error: "Kick API blocked the server request. Try again later." });
-    }
+    if (response.status === 404) return res.status(404).json({ error: `Channel "@${username}" not found.` });
+    if (!response.ok) return res.status(response.status).json({ error: "Kick API blocked the request." });
 
     const data = await response.json();
     const chatroomId = data?.chatroom?.id;
-    if (!chatroomId) {
-      console.error(`[Kick API] No chatroomId in payload for ${username}`);
-      return res.status(404).json({ error: 'Could not find chatroom ID for this user.' });
-    }
+    if (!chatroomId) return res.status(404).json({ error: 'Chatroom not found.' });
 
-    console.log(`[Kick API Success] chatroomId: ${chatroomId} for ${username}`);
     res.json({ chatroomId: String(chatroomId), channelId: String(data.id), username: data.slug });
   } catch (err) {
-    console.error(`[Internal Server Error] ${err.message}`);
-    res.status(500).json({ error: 'Internal Server Error: ' + err.message });
+    console.error(`[Fetch Error] ${err.message}`);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ─── CATCH-ALL 404 HANDLER (with CORS) ───────────────────────────────────────
+// ─── 3. GLOBAL ERROR & 404 GUARD ───────────────────────────────────────────
+// These ensure CORS headers are sent even when something goes wrong.
+
+// Catch-all 404
 app.use((req, res) => {
-  console.warn(`[404 NOT FOUND] ${req.method} ${req.url}`);
-  res.status(404).json({
-    error: 'Not Found',
-    path: req.url,
-    method: req.method,
-    tip: 'Ensure your VITE_SERVER_URL in Vercel is set to your base Railway URL without a trailing slash.'
-  });
+  console.warn(`[404] ${req.method} ${req.url}`);
+  res.status(404).json({ error: 'Not Found', tip: 'Check your VITE_SERVER_URL' });
 });
 
-// ─── HTTP server + WebSocket server (Manual Upgrade) ─────────────────────────
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('[CRASH]', err.stack);
+  // Re-inject CORS headers just in case
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
+  res.status(500).json({ error: 'Critical Server Error', message: err.message });
+});
+
+// ─── 4. SERVER & WEBSOCKETS ────────────────────────────────────────────────
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ noServer: true });
 
 function heartbeat() { this.isAlive = true; }
-
 const interval = setInterval(() => {
   wss.clients.forEach((ws) => {
     if (ws.isAlive === false) return ws.terminate();
@@ -106,11 +114,8 @@ const interval = setInterval(() => {
   });
 }, 30000);
 
-// Manual upgrade handling
 server.on('upgrade', (request, socket, head) => {
   const { pathname } = new URL(request.url, `http://${request.headers.host}`);
-  console.log(`[HTTP Upgrade] ${pathname} from ${request.headers.origin}`);
-
   if (pathname === '/' || pathname === '/ws') {
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, request);
@@ -121,10 +126,8 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 wss.on('connection', (clientWs, req) => {
-  console.log(`[WS Connection Open] Origin: ${req.headers.origin}`);
   clientWs.isAlive = true;
   clientWs.on('pong', heartbeat);
-
   let bridge = null;
 
   clientWs.on('message', (raw) => {
@@ -132,35 +135,24 @@ wss.on('connection', (clientWs, req) => {
       const msg = JSON.parse(raw.toString());
       if (msg.type === 'connect' && msg.chatroomId) {
         if (bridge) bridge.disconnect();
-        bridge = createKickChatBridge(msg.chatroomId, (chatMessage) => {
-          if (clientWs.readyState === WebSocket.OPEN) {
-            clientWs.send(JSON.stringify(chatMessage));
-          }
+        bridge = createKickChatBridge(msg.chatroomId, (chatMsg) => {
+          if (clientWs.readyState === WebSocket.OPEN) clientWs.send(JSON.stringify(chatMsg));
         });
         bridge.connect();
-        clientWs.send(JSON.stringify({ type: 'status', status: 'connecting', chatroomId: msg.chatroomId }));
+        clientWs.send(JSON.stringify({ type: 'status', status: 'connecting' }));
       } else if (msg.type === 'disconnect') {
         if (bridge) { bridge.disconnect(); bridge = null; }
       }
     } catch (e) {
-      console.error('[WS Message Error]', e.message);
+      console.error('[WS Error]', e.message);
     }
   });
 
-  clientWs.on('close', () => {
-    console.log('[WS Connection Closed]');
-    if (bridge) bridge.disconnect();
-  });
-
-  clientWs.on('error', (err) => {
-    console.error('[WS Error]', err.message);
-    if (bridge) bridge.disconnect();
-  });
+  clientWs.on('close', () => { if (bridge) bridge.disconnect(); });
 });
 
 wss.on('close', () => clearInterval(interval));
 
-// Listen on 0.0.0.0 for Railway
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 KickRank Server (Rev 3) listening on 0.0.0.0:${PORT}\n`);
+  console.log(`\n🚀 KickRank Server (Rev 4) listening on 0.0.0.0:${PORT}\n`);
 });
