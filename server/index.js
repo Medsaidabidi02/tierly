@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const http = require('http');
 const WebSocket = require('ws');
 const { createKickChatBridge } = require('./kickProxy');
@@ -8,22 +7,29 @@ const { createKickChatBridge } = require('./kickProxy');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// 1. HARDENED CORS: Move to the very top and handle preflight explicitly
-// This ensures that even if a route crashes, the CORS headers are sent.
-app.use(cors({
-  origin: '*', // For public voting, allow all. You can restrict to [origin1, origin2] later.
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// 1. ABSOLUTE CORS & LOGGER MIDDLEWARE
+// This replaces the 'cors' package with manual headers to ensure they are 
+// injected into every single response, even 404s and Errors.
+app.use((req, res, next) => {
+  // Log incoming request to Railway console
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} (Origin: ${req.headers.origin || 'none'})`);
 
-// Handle OPTIONS preflight requests specifically
-app.options('*', cors());
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Respond immediately to preflight OPTIONS requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 app.use(express.json());
 
 // 2. ROOT ROUTE: Verification helper
 app.get('/', (req, res) => {
-  res.send('🚀 KickRank Server Online');
+  res.send('🚀 KickRank Server Online - CORS Headers Hardened');
 });
 
 // Health check endpoint
@@ -33,8 +39,8 @@ app.get('/health', (req, res) => res.send('OK'));
 app.get('/api/chatroom/:username', async (req, res) => {
   const { username } = req.params;
   try {
-    // 3. NATIVE FETCH: Node 18+ has a built-in global fetch. Faster & more stable.
-    const response = await fetch(`https://kick.com/api/v2/channels/${username}`, {
+    // 3. GLOBAL FETCH: Use globalThis.fetch for absolute compatibility with Node 18+
+    const response = await globalThis.fetch(`https://kick.com/api/v2/channels/${username}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json, text/plain, */*',
@@ -45,17 +51,20 @@ app.get('/api/chatroom/:username', async (req, res) => {
       },
     });
 
-    if (response.status === 404) return res.status(404).json({ error: `Channel "@${username}" not found.` });
-    if (!response.ok) return res.status(response.status).json({ error: "Kick API blocked the request." });
+    if (response.status === 404) return res.status(404).json({ error: `Channel "@${username}" not found on Kick.` });
+    if (!response.ok) {
+      console.error(`[Kick API Error] ${response.status} for ${username}`);
+      return res.status(response.status).json({ error: "Kick API blocked the request. Try again later." });
+    }
 
     const data = await response.json();
     const chatroomId = data?.chatroom?.id;
-    if (!chatroomId) return res.status(404).json({ error: 'No chatroom found.' });
+    if (!chatroomId) return res.status(404).json({ error: 'Could not find chatroom ID for this user.' });
 
     res.json({ chatroomId: String(chatroomId), channelId: String(data.id), username: data.slug });
   } catch (err) {
-    console.error('[chatroom error]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[Internal Fetch Error]', err.message);
+    res.status(500).json({ error: 'Server internal error: ' + err.message });
   }
 });
 
@@ -76,7 +85,7 @@ const interval = setInterval(() => {
 // Manual upgrade handling
 server.on('upgrade', (request, socket, head) => {
   const { pathname } = new URL(request.url, `http://${request.headers.host}`);
-  console.log(`[HTTP] Upgrade request for ${pathname} from ${request.headers.origin}`);
+  console.log(`[HTTP Upgrade] ${pathname} from ${request.headers.origin}`);
 
   if (pathname === '/' || pathname === '/ws') {
     wss.handleUpgrade(request, socket, head, (ws) => {
@@ -88,7 +97,7 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 wss.on('connection', (clientWs, req) => {
-  console.log(`[WS] Client connected from ${req.headers.origin}`);
+  console.log(`[WS Connection] from ${req.headers.origin}`);
   clientWs.isAlive = true;
   clientWs.on('pong', heartbeat);
 
@@ -110,17 +119,17 @@ wss.on('connection', (clientWs, req) => {
         if (bridge) { bridge.disconnect(); bridge = null; }
       }
     } catch (e) {
-      console.error('[WS parse error]', e.message);
+      console.error('[WS Msg Error]', e.message);
     }
   });
 
   clientWs.on('close', () => {
-    console.log('[WS] Client disconnected');
+    console.log('[WS Disconnected]');
     if (bridge) bridge.disconnect();
   });
 
   clientWs.on('error', (err) => {
-    console.error('[WS client error]', err.message);
+    console.error('[WS Error]', err.message);
     if (bridge) bridge.disconnect();
   });
 });
@@ -129,5 +138,5 @@ wss.on('close', () => clearInterval(interval));
 
 // Bind to 0.0.0.0 for Railway
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 KickRank server listening on 0.0.0.0:${PORT}`);
+  console.log(`\n🚀 KickRank Server listening on 0.0.0.0:${PORT}`);
 });
