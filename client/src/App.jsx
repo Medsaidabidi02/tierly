@@ -234,24 +234,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Demo mode indicator ── */}
-      {isDemoMode && (
-        <div style={{
-          position: 'fixed',
-          top: '64px',
-          right: '12px',
-          background: 'rgba(255,215,0,0.1)',
-          border: '1px solid rgba(255,215,0,0.4)',
-          borderRadius: '8px',
-          padding: '6px 12px',
-          fontSize: '0.72rem',
-          color: '#ffd700',
-          fontWeight: '600',
-          zIndex: 50,
-        }}>
-          🎮 Demo Mode — Simulated votes
-        </div>
-      )}
 
       {/* ── Modals ── */}
       <AnimatePresence>
