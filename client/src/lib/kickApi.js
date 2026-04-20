@@ -10,9 +10,15 @@ const SERVER_URL = RAW_SERVER_URL.replace(/\/$/, '');
  *  2. Backend proxy — fallback if Kick adds CORS restrictions in future.
  *
  * @param {string} username
+ * @param {string} [manualId] - Optional manual chatroom ID provided by user
  * @returns {Promise<{ chatroomId: string, channelId: string, username: string }>}
  */
-export async function fetchChatroomId(username) {
+export async function fetchChatroomId(username, manualId) {
+  if (manualId) {
+    console.log(`[kickApi] Using manual chatroomId: ${manualId}`);
+    return { chatroomId: String(manualId), username: username.trim() };
+  }
+
   console.log(`[kickApi] Attempting fetch for ${username}. SERVER_URL: "${SERVER_URL}"`);
   const slug = encodeURIComponent(username.trim().toLowerCase());
 
