@@ -6,16 +6,10 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const WebSocket = require('ws');
-const { createClient } = require('@supabase/supabase-js');
 const { createKickChatBridge } = require('./kickProxy');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-
-// Supabase Init for the Collective Cache
-const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY)
-  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
-  : null;
 
 // ─── 1. DYNAMIC CORS ────────────────────────────────────────────────────────
 app.use(cors({
@@ -33,7 +27,7 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
-// ─── 2. LOOKUP STRATEGIES ───────────────────────────────────────────────────
+// ─── 2. MULTI-STRATEGY CHATROOM LOOKUP ──────────────────────────────────────
 
 async function fetchFromKick(url) {
   return globalThis.fetch(url, {
@@ -53,49 +47,25 @@ app.get('/api/chatroom/:username', async (req, res) => {
   
   console.log(`[Lookup] Request for ${slug}...`);
 
-  // STRATEGY 0: Collective Intelligence Cache (Supabase)
-  if (supabase) {
-    try {
-      console.log(`[Cache] Checking DB for ${slug}...`);
-      const { data, error } = await supabase
-        .from('streamer_cache')
-        .select('chatroom_id')
-        .eq('username', slug)
-        .single();
-      
-      if (data?.chatroom_id) {
-        console.log(`[Cache] HIT! Using stored ID: ${data.chatroom_id}`);
-        return res.json({ chatroomId: String(data.chatroom_id), username: slug, from_cache: true });
-      }
-    } catch (e) {
-      console.log(`[Cache] Miss or error: ${e.message}`);
-    }
-  }
-
   // STRATEGY A: API v2 (with Bot User-Agent)
   try {
+    console.log(`[Strategy A] Trying API v2...`);
     const resKick = await fetchFromKick(`https://kick.com/api/v2/channels/${slug}`);
     if (resKick.ok) {
       const data = await resKick.json();
       const cid = data?.chatroom?.id;
       if (cid) {
         console.log(`[Strategy A] Success: ${cid}`);
-        
-        // SAVE TO CACHE (Fire and forget)
-        if (supabase) {
-          supabase.from('streamer_cache').upsert({ username: slug, chatroom_id: String(cid) }).then();
-        }
-        
         return res.json({ chatroomId: String(cid), username: data.slug });
       }
     }
-    console.warn(`[Lookup] API v2 failed: ${resKick.status}`);
   } catch (e) {
-    console.warn(`[Lookup] Error: ${e.message}`);
+    console.warn(`[Lookup] Strategy A Error: ${e.message}`);
   }
 
   // STRATEGY B: HTML Scraping Fallback
   try {
+    console.log(`[Strategy B] Trying HTML Scrape...`);
     const resHTML = await fetchFromKick(`https://kick.com/${slug}`);
     if (resHTML.ok) {
       const html = await resHTML.text();
@@ -103,24 +73,21 @@ app.get('/api/chatroom/:username', async (req, res) => {
       if (match && match[1]) {
         const cid = match[1];
         console.log(`[Strategy B] Success via HTML: ${cid}`);
-        
-        if (supabase) {
-          supabase.from('streamer_cache').upsert({ username: slug, chatroom_id: String(cid) }).then();
-        }
-        
         return res.json({ chatroomId: cid, username: slug });
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn(`[Lookup] Strategy B Error: ${e.message}`);
+  }
 
   res.status(403).json({ 
     error: "Blocking in progress.",
-    details: "Use the 'Magic Sync' bookmarklet to bypass Cloudflare."
+    details: "Your server IP is being blocked. Use the 'Magic Sync' bookmarklet in the app to connect."
   });
 });
 
 // ─── 3. ROUTES ──────────────────────────────────────────────────────────────
-app.get('/', (req, res) => res.json({ status: 'Online', message: '🚀 KickRank Server (Collective Cache)' }));
+app.get('/', (req, res) => res.json({ status: 'Online', message: '🚀 KickRank Server (Stable)' }));
 app.get('/health', (req, res) => res.send('OK'));
 
 app.use((req, res) => res.status(404).json({ error: 'Not Found' }));

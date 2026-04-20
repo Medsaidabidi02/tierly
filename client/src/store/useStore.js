@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
 
 // ─── Tier Configuration ───────────────────────────────────────────────────────
 export const TIERS = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
@@ -12,6 +11,20 @@ export const TIER_COLORS = {
   C: '#4fc3f7', D: '#9575cd', E: '#f48fb1', F: '#546e7a',
 };
 
+// Helper to load/save from localStorage
+const STORAGE_KEY = 'kickrank_custom_packs';
+const loadLocalPacks = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch (e) {
+    return [];
+  }
+};
+const saveLocalPacks = (packs) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(packs));
+};
+
 // ─── Store ────────────────────────────────────────────────────────────────────
 const useStore = create((set, get) => ({
   // ── Connection state ──────────────────────────────────────────────────────
@@ -22,7 +35,7 @@ const useStore = create((set, get) => ({
 
   // ── Pack state ────────────────────────────────────────────────────────────
   currentPack: null,       // { id, name, items: [{ id, name, imageUrl }] }
-  customPacks: [],         // Locally created or fetched packs
+  customPacks: loadLocalPacks(), // Initialize from local storage
   packQueue: [],           // items yet to be voted on
   currentItemIndex: 0,
 
@@ -93,19 +106,15 @@ const useStore = create((set, get) => ({
     const newVotes = { ...votes };
     const prevVote = voterMap[username];
 
-    // If this user voted before, remove their previous vote
     if (prevVote && prevVote !== tier) {
       newVotes[prevVote] = Math.max(0, newVotes[prevVote] - 1);
     }
 
-    // Only add if it's a new vote or changed vote
     if (prevVote !== tier) {
       newVotes[tier] = (newVotes[tier] || 0) + 1;
     }
 
     const newVoterMap = { ...voterMap, [username]: tier };
-
-    // Calculate weighted average
     const totalVotes = Object.values(newVotes).reduce((s, v) => s + v, 0);
     let weightedSum = 0;
     for (const [t, count] of Object.entries(newVotes)) {
@@ -150,93 +159,19 @@ const useStore = create((set, get) => ({
     }));
   },
 
-  addCustomPack: async (pack) => {
+  // ── Local-Only Custom Packs ──────────────────
+  addCustomPack: (pack) => {
     const { customPacks } = get();
-    // Add locally immediately for snappy UI
-    set({ customPacks: [pack, ...customPacks] });
-
-    if (supabase) {
-      try {
-        const { data: packData, error: pError } = await supabase
-          .from('packs')
-          .insert({ 
-            name: pack.name, 
-            description: pack.description,
-            created_by: get().username // Optional: track who created it
-          })
-          .select()
-          .single();
-
-        if (pError) throw pError;
-
-        const itemsToInsert = pack.items.map((item, idx) => ({
-          pack_id: packData.id,
-          name: item.name,
-          image_url: item.imageUrl,
-          position: idx
-        }));
-
-        const { error: iError } = await supabase.from('pack_items').insert(itemsToInsert);
-        if (iError) throw iError;
-        
-        // Refresh from DB to get the real IDs
-        get().fetchSharedPacks();
-      } catch (e) {
-        console.warn('Persistence failed:', e.message);
-      }
-    }
+    const newPacks = [pack, ...customPacks];
+    set({ customPacks: newPacks });
+    saveLocalPacks(newPacks);
   },
 
-  deletePack: async (packId) => {
-    if (!supabase) {
-       // Local only deletion
-       set((state) => ({
-         customPacks: state.customPacks.filter(p => p.id !== packId)
-       }));
-       return;
-    }
-
-    try {
-      // Logic for Supabase deletion (cascading assumed or manual items first)
-      const { error } = await supabase.from('packs').delete().eq('id', packId);
-      if (error) throw error;
-      
-      set((state) => ({
-        customPacks: state.customPacks.filter(p => p.id !== packId)
-      }));
-    } catch (e) {
-      console.error('Failed to delete pack:', e.message);
-      alert('Delete failed: ' + e.message);
-    }
-  },
-
-  fetchSharedPacks: async () => {
-    if (!supabase) return;
-    try {
-      const { data, error } = await supabase
-        .from('packs')
-        .select(`
-          id, name, description, created_at,
-          items:pack_items(id, name, imageUrl:image_url)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      
-      // Transform items to include imageUrl field name expected by the app
-      const transformed = (data || []).map(p => ({
-        ...p,
-        items: (p.items || []).map(it => ({
-          id: it.id,
-          name: it.name,
-          imageUrl: it.imageUrl
-        }))
-      }));
-
-      set({ customPacks: transformed });
-    } catch (e) {
-      console.warn('Failed to fetch shared packs:', e.message);
-    }
+  deletePack: (packId) => {
+    const { customPacks } = get();
+    const newPacks = customPacks.filter(p => p.id !== packId);
+    set({ customPacks: newPacks });
+    saveLocalPacks(newPacks);
   },
 
   resetAll: () => set({
