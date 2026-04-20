@@ -102,7 +102,7 @@ export default function App() {
 
         {/* ── LEFT: Tier List ── */}
         <div style={{
-          flex: '0.7 1 0',
+          flex: 1,
           minWidth: 0,
           display: 'flex',
           flexDirection: 'column',
