@@ -13,6 +13,7 @@ const SERVER_URL = RAW_SERVER_URL.replace(/\/$/, '');
  * @returns {Promise<{ chatroomId: string, channelId: string, username: string }>}
  */
 export async function fetchChatroomId(username) {
+  console.log(`[kickApi] Attempting fetch for ${username}. SERVER_URL: "${SERVER_URL}"`);
   const slug = encodeURIComponent(username.trim().toLowerCase());
 
   // ── Strategy 1: Direct browser fetch (ONLY for localhost) ──

@@ -1,4 +1,7 @@
 require('dotenv').config();
+console.log('-------------------------------------------');
+console.log('🚀 SYSTEM: KICKRANK BACKEND STARTING...');
+console.log('-------------------------------------------');
 const express = require('express');
 const cors = require('cors'); // Re-introduced
 const http = require('http');
