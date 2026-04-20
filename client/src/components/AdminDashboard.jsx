@@ -14,6 +14,7 @@ export default function AdminDashboard({ onClose }) {
   const [description, setDescription] = useState('');
   const [isOfficial, setIsOfficial] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
+  const [managePassword, setManagePassword] = useState('');
   const [items, setItems] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -70,6 +71,15 @@ export default function AdminDashboard({ onClose }) {
       alert('Save failed: ' + err.message);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDelete = (id) => {
+    if (managePassword !== ADMIN_PASS) {
+      return alert('Admin Key required for deletion. Please enter it at the top of the gallery list.');
+    }
+    if (window.confirm('Permanently delete this pack?')) {
+      deletePack(id);
     }
   };
 
@@ -131,7 +141,7 @@ export default function AdminDashboard({ onClose }) {
                 </div>
                 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--kick-text-muted)' }}>Upload Images</label>
+                  <label style={{ block: 'block', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--kick-text-muted)' }}>Upload Images</label>
                   <button className="btn-secondary" style={{ width: '100%', padding: '20px', border: '2px dashed var(--kick-border)' }} onClick={() => fileInputRef.current.click()} disabled={uploading}>
                     {uploading ? '⏳ Uploading to Cloud...' : '📁 Click to upload images (PNG, JPG)'}
                   </button>
@@ -154,6 +164,18 @@ export default function AdminDashboard({ onClose }) {
               </motion.div>
             ) : (
               <motion.div key="manage" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ background: 'rgba(255,68,68,0.05)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,68,68,0.1)', marginBottom: '8px' }}>
+                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.75rem', color: '#ff8080' }}>Admin Deletion Lock</label>
+                   <input 
+                     type="password" 
+                     className="kick-input" 
+                     style={{ maxWidth: '200px', fontSize: '0.75rem', padding: '8px' }}
+                     placeholder="Enter Key to remove packs..."
+                     value={managePassword}
+                     onChange={e => setManagePassword(e.target.value)}
+                   />
+                </div>
+
                 {allPacks.map(p => (
                   <div key={p.id} style={{ background: 'var(--kick-surface-2)', padding: '16px', borderRadius: '10px', border: '1px solid var(--kick-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
@@ -161,8 +183,14 @@ export default function AdminDashboard({ onClose }) {
                       <strong style={{ fontSize: '1rem' }}>{p.name}</strong>
                       <div style={{ fontSize: '0.75rem', color: 'var(--kick-text-dim)', marginTop: '4px' }}>{p.items?.length || 0} items published</div>
                     </div>
-                    {/* Simplified delete: Only for local UX, real DB delete needs logic */}
-                    <button onClick={() => deletePack(p.id)} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #ff444433', color: '#ff4444', background: 'transparent', cursor: 'pointer', fontSize: '0.75rem' }}>Remove</button>
+                    {managePassword === ADMIN_PASS && (
+                      <button 
+                        onClick={() => handleDelete(p.id)} 
+                        style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #ff444466', color: '#ff4444', background: 'rgba(255,68,68,0.1)', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        Remove Permanently
+                      </button>
+                    )}
                   </div>
                 ))}
               </motion.div>

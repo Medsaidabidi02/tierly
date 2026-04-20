@@ -15,14 +15,14 @@
   --kick-text-muted:  #888888;
   --kick-text-dim:    #555555;
 
-  /* Tier colors */
-  --tier-s: #ff6b35;
-  --tier-a: #ffd700;
-  --tier-b: #7bc67e;
-  --tier-c: #4fc3f7;
-  --tier-d: #9575cd;
-  --tier-e: #f48fb1;
-  --tier-f: #546e7a;
+  /* Tier colors (Updated Palette) */
+  --tier-s: #ff8080;
+  --tier-a: #ffbf80;
+  --tier-b: #ffdf80;
+  --tier-c: #ffdf80;
+  --tier-d: #bfff80;
+  --tier-e: #bfff80;
+  --tier-f: #bfff80;
 }
 
 /* ─── Base Reset ──────────────────────────────────────────────────────────── */

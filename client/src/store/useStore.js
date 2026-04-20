@@ -8,8 +8,8 @@ export const TIER_TO_SCORE = { S: 6, A: 5, B: 4, C: 3, D: 2, E: 1, F: 0 };
 export const SCORE_TO_TIER = (avg) => TIERS.slice().reverse()[Math.round(avg)];
 
 export const TIER_COLORS = {
-  S: '#ff6b35', A: '#ffd700', B: '#7bc67e',
-  C: '#4fc3f7', D: '#9575cd', E: '#f48fb1', F: '#546e7a',
+  S: '#ff8080', A: '#ffbf80', B: '#ffdf80',
+  C: '#ffdf80', D: '#bfff80', E: '#bfff80', F: '#bfff80',
 };
 
 // ─── Store ────────────────────────────────────────────────────────────────────
