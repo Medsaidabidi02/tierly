@@ -34,15 +34,6 @@ export default function SetupModal({ onClose }) {
     }
   };
 
-  const bookmarkletCode = `javascript:(function(){const m=document.body.innerHTML.match(/"chatroom_id":(\\d+)/);if(m){const u=window.location.pathname.replace("/","");window.location.href="https://tierly-murex.vercel.app/?chatroomId="+m[1]+"&u="+u;}else{alert("Go to your Kick Channel Page first!")}})();`;
-
-  const handleDemoMode = () => {
-    setUsername('demo_streamer');
-    setChatroomId('DEMO');
-    setConnectionStatus('subscribed');
-    onClose();
-  };
-
   return (
     <AnimatePresence>
       <div className="modal-backdrop" onClick={onClose}>
@@ -67,7 +58,7 @@ export default function SetupModal({ onClose }) {
               </h2>
             </div>
             <p style={{ color: 'var(--kick-text-muted)', fontSize: '0.875rem', margin: 0 }}>
-              Enter your username or use the Magic Sync.
+              Enter your Kick username to pull live chat votes.
             </p>
           </div>
 
@@ -86,7 +77,7 @@ export default function SetupModal({ onClose }) {
               </div>
             </div>
 
-            {/* Error + Magic Sync UI */}
+            {/* Error / Manual ID UI */}
             <AnimatePresence>
               {(error || showManual) && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ overflow: 'hidden' }}>
@@ -97,33 +88,13 @@ export default function SetupModal({ onClose }) {
                      padding: '16px',
                      marginTop: '4px'
                    }}>
-                      <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem', color: 'var(--kick-green)' }}>✨ Magic Sync (100% Stable)</h4>
+                      <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem', color: 'var(--kick-green)' }}>Manual Chat Connection</h4>
                       <p style={{ fontSize: '0.75rem', color: 'var(--kick-text-muted)', margin: '0 0 12px', lineHeight: '1.4' }}>
-                        Drag this button to your bookmarks bar. Then go to your Kick page and click it!
+                        If automatic lookup fails, enter your Chatroom ID manually.
                       </p>
                       
-                      <a 
-                        href={bookmarkletCode}
-                        onDragStart={(e) => e.dataTransfer.setData('text/plain', bookmarkletCode)}
-                        style={{
-                          display: 'inline-block',
-                          padding: '10px 20px',
-                          background: 'var(--kick-green)',
-                          color: '#000',
-                          borderRadius: '8px',
-                          fontSize: '0.8rem',
-                          fontWeight: '700',
-                          textDecoration: 'none',
-                          cursor: 'move',
-                          textAlign: 'center',
-                          width: '100%'
-                        }}
-                      >
-                        🖱️ DRAG ME TO BOOKMARKS
-                      </a>
-
-                      <div style={{ marginTop: '16px' }}>
-                        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '6px', color: 'var(--kick-text-muted)' }}>Or enter Chatroom ID manually:</label>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '6px', color: 'var(--kick-text-muted)' }}>Chatroom ID:</label>
                         <input 
                           className="kick-input" 
                           style={{ fontSize: '0.8rem' }}
@@ -150,18 +121,9 @@ export default function SetupModal({ onClose }) {
               onClick={() => setShowManual(true)}
               style={{ background: 'none', border: 'none', color: 'var(--kick-text-dim)', fontSize: '0.7rem', cursor: 'pointer', marginTop: '12px', textDecoration: 'underline' }}
             >
-              Can't connect? Use Magic Sync
+              Enter ID manually?
             </button>
           )}
-
-          <div style={{ margin: '20px 0 12px', textAlign: 'center', position: 'relative' }}>
-            <div style={{ height: '1px', background: 'var(--kick-border)', position: 'absolute', top: '50%', left: 0, right: 0 }} />
-            <span style={{ position: 'relative', background: 'var(--kick-surface)', padding: '0 12px', fontSize: '0.75rem', color: 'var(--kick-text-dim)' }}>or</span>
-          </div>
-
-          <button className="btn-secondary" style={{ width: '100%', textAlign: 'center' }} onClick={handleDemoMode}>
-            🎮 Try Demo Mode
-          </button>
         </motion.div>
       </div>
     </AnimatePresence>

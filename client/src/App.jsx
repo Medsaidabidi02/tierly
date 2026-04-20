@@ -9,7 +9,6 @@ import SetupModal from './components/SetupModal';
 import PackSelector from './components/PackSelector';
 import AdminDashboard from './components/AdminDashboard';
 import { useKickChat } from './hooks/useKickChat';
-import { useDemoSimulator } from './hooks/useDemoSimulator';
 import useStore from './store/useStore';
 
 // ─── Spin keyframe injection ──────────────────────────────────────────────────
@@ -54,24 +53,9 @@ export default function App() {
   
   React.useEffect(() => {
     fetchGlobalPacks(); // Initial fetch of shared gallery
-    
-    // Magic Sync Listener: Check for chatroomId and u (username) in URL
-    const params = new URLSearchParams(window.location.search);
-    const urlCid = params.get('chatroomId');
-    const urlU = params.get('u');
-
-    if (urlCid && urlU) {
-      console.log(`[Magic Sync] Auto-connecting to ${urlU} (ID: ${urlCid})`);
-      setUsername(urlU);
-      setChatroomId(urlCid);
-      setConnectionStatus('connecting');
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, [fetchGlobalPacks, setChatroomId, setUsername, setConnectionStatus]);
+  }, [fetchGlobalPacks]);
 
   const isConnected = connectionStatus === 'subscribed' || connectionStatus === 'connected';
-  const isDemoMode = chatroomId === 'DEMO';
 
   return (
     <div style={{

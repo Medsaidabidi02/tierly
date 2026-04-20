@@ -21,7 +21,8 @@ export default function CurrentItemSpotlight() {
     packQueue, 
     currentItemIndex,
     votingTimer,
-    timerActive
+    timerActive,
+    forceFinishPack
   } = useStore();
 
   const [selectedDuration, setSelectedDuration] = useState(null);
@@ -93,11 +94,27 @@ export default function CurrentItemSpotlight() {
       {/* Step indicator */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--kick-border)', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--kick-text-muted)', fontWeight: '600' }}>
         <span>ITEM {currentItemIndex + 1} OF {packQueue.length}</span>
-        {timerActive && (
-          <span style={{ color: 'var(--kick-green)', fontFamily: 'Space Grotesk' }}>
-            ⏱️ {formatTime(votingTimer)}
-          </span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {timerActive && (
+            <span style={{ color: 'var(--kick-green)', fontFamily: 'Space Grotesk', fontSize: '0.65rem' }}>
+              ⏱️ {formatTime(votingTimer)}
+            </span>
+          )}
+          <button 
+            onClick={forceFinishPack}
+            style={{ 
+              background: 'rgba(255,255,255,0.05)', 
+              border: '1px solid var(--kick-border)', 
+              color: 'var(--kick-text-muted)', 
+              fontSize: '0.6rem', 
+              padding: '2px 8px', 
+              borderRadius: '4px', 
+              cursor: 'pointer' 
+            }}
+          >
+            🏁 Finish List
+          </button>
+        </div>
       </div>
 
       <div style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '30px', textAlign: 'center' }}>

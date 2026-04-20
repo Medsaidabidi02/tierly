@@ -192,6 +192,19 @@ const useStore = create((set, get) => ({
     });
   },
 
+  forceFinishPack: () => {
+    set({
+      currentItem: null,
+      currentItemIndex: get().packQueue.length,
+      votingOpen: false,
+      votes: { S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },
+      totalVotes: 0,
+      voterMap: {},
+      timerActive: false,
+      votingTimer: null
+    });
+  },
+
   addChatMessage: (msg) => {
     set((state) => ({
       chatMessages: [msg, ...state.chatMessages].slice(0, 100),

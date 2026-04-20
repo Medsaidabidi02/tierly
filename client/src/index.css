@@ -128,9 +128,9 @@ body {
 .tier-label-a { background: var(--tier-a); color: #000; }
 .tier-label-b { background: var(--tier-b); color: #000; }
 .tier-label-c { background: var(--tier-c); color: #000; }
-.tier-label-d { background: var(--tier-d); color: #fff; }
+.tier-label-d { background: var(--tier-d); color: #000; }
 .tier-label-e { background: var(--tier-e); color: #000; }
-.tier-label-f { background: var(--tier-f); color: #fff; }
+.tier-label-f { background: var(--tier-f); color: #000; }
 
 .tier-glow-s { box-shadow: 0 0 20px rgba(255, 107, 53, 0.3); }
 .tier-glow-a { box-shadow: 0 0 20px rgba(255, 215, 0, 0.3); }
