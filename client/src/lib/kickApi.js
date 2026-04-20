@@ -1,4 +1,6 @@
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+const RAW_SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+// Sanitize URL: Remove any trailing slashes to prevent double-slash 404 errors
+const SERVER_URL = RAW_SERVER_URL.replace(/\/$/, '');
 
 /**
  * Fetches the Kick chatroom ID for a given username.
